@@ -1,325 +1,390 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle, Circle, Trophy, Coins, RotateCcw, Sparkles, Heart, ListPlus } from 'lucide-react';
-
-export default function PinkTokenEconomy() {
-  // --- ESTADO ---
-  const [points, setPoints] = useState(() => {
-    const saved = localStorage.getItem('pink_token_points');
-    return saved ? JSON.parse(saved) : 0;
-  });
-
-  const [tasks, setTasks] = useState(() => {
-    const saved = localStorage.getItem('pink_token_tasks');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [rewards, setRewards] = useState(() => {
-    const saved = localStorage.getItem('pink_token_rewards');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  // Entradas
-  const [bulkText, setBulkText] = useState('');
-  const [newReward, setNewReward] = useState('');
-  const [newRewardCost, setNewRewardCost] = useState(10);
-
-  // --- PERSISTENCIA ---
-  useEffect(() => {
-    localStorage.setItem('pink_token_points', JSON.stringify(points));
-    localStorage.setItem('pink_token_tasks', JSON.stringify(tasks));
-    localStorage.setItem('pink_token_rewards', JSON.stringify(rewards));
-  }, [points, tasks, rewards]);
-
-  // --- LÓGICA ---
-
-  // Procesamiento masivo de texto
-  const handleBulkAdd = (e) => {
-    e.preventDefault();
-    if (!bulkText.trim()) return;
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Diario de Logros ✨</title>
     
-    // Dividir por líneas y filtrar vacías
-    const lines = bulkText.split(/\n/).filter(line => line.trim() !== '');
+    <!-- React y ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
-    const newTasks = lines.map(line => ({
-      id: Date.now() + Math.random(), // ID único
-      title: line.trim(),
-      points: 1, // Siempre 1 punto
-      completed: false
-    }));
+    <!-- Babel para traducir JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    setTasks([...tasks, ...newTasks]);
-    setBulkText('');
-  };
-
-  const handleAddReward = (e) => {
-    e.preventDefault();
-    if (!newReward.trim()) return;
-
-    const reward = {
-      id: Date.now(),
-      title: newReward,
-      cost: parseInt(newRewardCost)
-    };
-
-    setRewards([...rewards, reward]);
-    setNewReward('');
-    setNewRewardCost(10);
-  };
-
-  const toggleTask = (id) => {
-    setTasks(tasks.map(task => {
-      if (task.id === id) {
-        // Si estaba completada, restamos el punto. Si no, lo sumamos.
-        if (task.completed) {
-          setPoints(prev => Math.max(0, prev - 1));
-        } else {
-          setPoints(prev => prev + 1);
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Configuración de Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pink: { 50: '#fdf2f8', 100: '#fce7f3', 200: '#fbcfe8', 300: '#f9a8d4', 400: '#f472b6', 500: '#ec4899', 600: '#db2777' },
+                        purple: { 50: '#faf5ff', 100: '#f3e8ff', 200: '#e9d5ff', 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea', 900: '#581c87' }
+                    }
+                }
+            }
         }
-        return { ...task, completed: !task.completed };
-      }
-      return task;
-    }));
-  };
+    </script>
 
-  const deleteTask = (id) => {
-    setTasks(tasks.filter(t => t.id !== id));
-  };
-
-  const deleteReward = (id) => {
-    setRewards(rewards.filter(r => r.id !== id));
-  };
-
-  const redeemReward = (reward) => {
-    if (points >= reward.cost) {
-      if (confirm(`¿Canjear "${reward.title}" por ${reward.cost} puntos? 💖`)) {
-        setPoints(prev => prev - reward.cost);
-      }
-    } else {
-      // Animación visual o mensaje simple
-    }
-  };
-
-  const resetDailyTasks = () => {
-    if (confirm("¿Lista para un nuevo día? ✨")) {
-      setTasks(tasks.map(t => ({ ...t, completed: false })));
-    }
-  };
-
-  const clearAllTasks = () => {
-    if (confirm("¿Borrar TODAS las tareas de la lista?")) {
-      setTasks([]);
-    }
-  };
-
-  // Ordenar: Pendientes arriba
-  const sortedTasks = [...tasks].sort((a, b) => (a.completed === b.completed ? 0 : a.completed ? 1 : -1));
-
-  // --- RENDERIZADO ---
-  return (
-    <div className="min-h-screen bg-pink-50 font-sans text-slate-700 pb-20">
-      
-      {/* Header Decorativo */}
-      <div className="bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 pb-20 pt-10 px-6 shadow-lg rounded-b-[2.5rem]">
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center text-white">
-          <div className="text-center md:text-left mb-6 md:mb-0">
-            <h1 className="text-4xl font-black tracking-tight flex items-center justify-center md:justify-start gap-3 drop-shadow-md">
-              <Sparkles className="text-yellow-200 animate-pulse" />
-              Mi Diario de Logros
-            </h1>
-            <p className="text-purple-100 mt-2 font-medium opacity-90">Transforma tu lista en recompensas ✨</p>
-          </div>
-          
-          <div className="bg-white/20 backdrop-blur-md rounded-2xl p-4 flex flex-col items-center border border-white/30 shadow-xl transform hover:scale-105 transition-transform duration-300">
-            <span className="text-xs uppercase tracking-widest text-pink-100 font-bold mb-1">Puntos Disponibles</span>
-            <div className="text-5xl font-black text-white flex items-center gap-2 drop-shadow-sm">
-              <Heart className="fill-current text-pink-200" size={32} />
-              {points}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-4xl mx-auto px-4 -mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <style>
+        /* Estilos personalizados para scrollbar y animaciones */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #fce7f3; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #f472b6; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #ec4899; }
         
-        {/* SECCIÓN TAREAS (Izquierda) */}
-        <div className="bg-white rounded-3xl shadow-xl border-2 border-pink-100 overflow-hidden flex flex-col">
-          <div className="bg-pink-50/50 p-5 border-b border-pink-100 flex justify-between items-center">
-            <h2 className="text-xl font-bold text-purple-900 flex items-center gap-2">
-              <ListPlus className="text-pink-500" />
-              Misiones
-            </h2>
-            <div className="flex gap-2">
-               <button onClick={resetDailyTasks} className="p-2 text-purple-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors" title="Desmarcar todo">
-                <RotateCcw size={18} />
-              </button>
-              <button onClick={clearAllTasks} className="p-2 text-pink-300 hover:text-red-400 hover:bg-red-50 rounded-full transition-colors" title="Borrar lista">
-                <Trash2 size={18} />
-              </button>
-            </div>
-          </div>
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+    </style>
+</head>
+<body class="bg-pink-50 text-slate-700 min-h-screen">
+    <div id="root"></div>
 
-          <div className="p-5 flex-1">
-            {/* Input Masivo */}
-            <form onSubmit={handleBulkAdd} className="mb-6 relative group">
-              <textarea
-                className="w-full bg-pink-50/50 border-2 border-pink-100 rounded-2xl p-4 text-purple-900 placeholder:text-pink-300 focus:outline-none focus:border-pink-300 focus:bg-white transition-all resize-none text-sm leading-relaxed"
-                placeholder="Pega tu lista aquí...&#10;Hacer la cama&#10;Lavar los platos&#10;Enviar correos"
-                rows="3"
-                value={bulkText}
-                onChange={(e) => setBulkText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleBulkAdd(e);
-                  }
-                }}
-              />
-              <button 
-                type="submit"
-                className="absolute bottom-3 right-3 bg-gradient-to-tr from-pink-500 to-purple-500 text-white p-2 rounded-xl shadow-lg hover:shadow-pink-300/50 hover:scale-105 transition-all"
-                disabled={!bulkText.trim()}
-              >
-                <Plus size={20} />
-              </button>
-            </form>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
-            {/* Lista de Tareas */}
-            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-              {sortedTasks.length === 0 && (
-                <div className="text-center py-10 opacity-40">
-                  <ListPlus size={48} className="mx-auto text-pink-300 mb-2" />
-                  <p className="text-purple-300 font-medium">Lista vacía. ¡Pega tus tareas arriba!</p>
-                </div>
-              )}
-              
-              {sortedTasks.map(task => (
-                <div 
-                  key={task.id} 
-                  className={`group flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 ${
-                    task.completed 
-                      ? 'bg-slate-50 border-transparent opacity-50' 
-                      : 'bg-white border-pink-100 shadow-sm hover:shadow-md hover:border-pink-200'
-                  }`}
-                >
-                  <button 
-                    onClick={() => toggleTask(task.id)}
-                    className="flex-1 flex items-center gap-3 text-left"
-                  >
-                    <div className={`transition-all duration-300 transform ${task.completed ? 'scale-110' : 'group-hover:scale-110'}`}>
-                      {task.completed 
-                        ? <CheckCircle className="text-green-400 fill-green-50" size={24} /> 
-                        : <Circle className="text-pink-300 group-hover:text-pink-500" size={24} />
-                      }
-                    </div>
-                    <span className={`text-sm md:text-base transition-all ${
-                      task.completed ? 'line-through text-slate-400' : 'text-purple-900 font-medium'
-                    }`}>
-                      {task.title}
-                    </span>
-                  </button>
-                  
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-xs font-bold text-pink-400 bg-pink-50 px-2 py-1 rounded-lg">
-                      +1
-                    </span>
-                    <button 
-                      onClick={() => deleteTask(task.id)}
-                      className="text-slate-300 hover:text-red-400 p-1"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        // --- ICONOS SVG (Inline para evitar problemas de importación) ---
+        const Icon = ({ path, className, size = 24, fill = "none" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {path}
+            </svg>
+        );
 
-        {/* SECCIÓN RECOMPENSAS (Derecha) */}
-        <div className="bg-white rounded-3xl shadow-xl border-2 border-purple-100 overflow-hidden flex flex-col h-fit">
-          <div className="bg-purple-50/50 p-5 border-b border-purple-100">
-            <h2 className="text-xl font-bold text-purple-900 flex items-center gap-2">
-              <Trophy className="text-purple-500" />
-              Premios
-            </h2>
-          </div>
+        const Icons = {
+            Sparkles: (props) => <Icon {...props} path={<><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 9h4"/><path d="M3 5h4"/></>} />,
+            Heart: (props) => <Icon {...props} path={<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />} />,
+            ListPlus: (props) => <Icon {...props} path={<><path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="M18 9v6"/><path d="M21 12h-6"/></>} />,
+            RotateCcw: (props) => <Icon {...props} path={<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12" />} />,
+            Trash2: (props) => <Icon {...props} path={<><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></>} />,
+            Plus: (props) => <Icon {...props} path={<><path d="M5 12h14"/><path d="M12 5v14"/></>} />,
+            CheckCircle: (props) => <Icon {...props} path={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>} />,
+            Circle: (props) => <Icon {...props} path={<circle cx="12" cy="12" r="10"/>} />,
+            Trophy: (props) => <Icon {...props} path={<><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></>} />
+        };
 
-          <div className="p-5">
-             {/* Lista de Recompensas */}
-             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 mb-6">
-                {rewards.map(reward => {
-                  const canAfford = points >= reward.cost;
-                  return (
-                    <button
-                      key={reward.id} 
-                      onClick={() => canAfford && redeemReward(reward)}
-                      disabled={!canAfford}
-                      className={`relative w-full text-left p-4 rounded-2xl border-2 transition-all duration-300 group overflow-hidden ${
-                        canAfford 
-                          ? 'bg-white border-purple-200 hover:border-purple-400 hover:shadow-purple-100 shadow-sm' 
-                          : 'bg-slate-50 border-slate-100 opacity-60 cursor-not-allowed'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center z-10 relative">
-                        <span className="font-bold text-purple-900 group-hover:text-purple-700">{reward.title}</span>
-                        <div className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1">
-                           {reward.cost} <Heart size={12} className="fill-current" />
+        // --- COMPONENTE PRINCIPAL ---
+        function App() {
+            // --- ESTADO ---
+            const [points, setPoints] = useState(() => {
+                const saved = localStorage.getItem('pink_token_points');
+                return saved ? JSON.parse(saved) : 0;
+            });
+
+            const [tasks, setTasks] = useState(() => {
+                const saved = localStorage.getItem('pink_token_tasks');
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            const [rewards, setRewards] = useState(() => {
+                const saved = localStorage.getItem('pink_token_rewards');
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            // Entradas
+            const [bulkText, setBulkText] = useState('');
+            const [newReward, setNewReward] = useState('');
+            const [newRewardCost, setNewRewardCost] = useState(10);
+
+            // --- PERSISTENCIA ---
+            useEffect(() => {
+                localStorage.setItem('pink_token_points', JSON.stringify(points));
+                localStorage.setItem('pink_token_tasks', JSON.stringify(tasks));
+                localStorage.setItem('pink_token_rewards', JSON.stringify(rewards));
+            }, [points, tasks, rewards]);
+
+            // --- LÓGICA ---
+            const handleBulkAdd = (e) => {
+                e.preventDefault();
+                if (!bulkText.trim()) return;
+                
+                const lines = bulkText.split(/\n/).filter(line => line.trim() !== '');
+                
+                const newTasks = lines.map(line => ({
+                    id: Date.now() + Math.random(),
+                    title: line.trim(),
+                    points: 1,
+                    completed: false
+                }));
+                
+                setTasks([...tasks, ...newTasks]);
+                setBulkText('');
+            };
+
+            const handleAddReward = (e) => {
+                e.preventDefault();
+                if (!newReward.trim()) return;
+
+                const reward = {
+                    id: Date.now(),
+                    title: newReward,
+                    cost: parseInt(newRewardCost)
+                };
+
+                setRewards([...rewards, reward]);
+                setNewReward('');
+                setNewRewardCost(10);
+            };
+
+            const toggleTask = (id) => {
+                setTasks(tasks.map(task => {
+                    if (task.id === id) {
+                        if (task.completed) {
+                            setPoints(prev => Math.max(0, prev - 1));
+                        } else {
+                            setPoints(prev => prev + 1);
+                        }
+                        return { ...task, completed: !task.completed };
+                    }
+                    return task;
+                }));
+            };
+
+            const deleteTask = (id) => {
+                setTasks(tasks.filter(t => t.id !== id));
+            };
+
+            const deleteReward = (id) => {
+                setRewards(rewards.filter(r => r.id !== id));
+            };
+
+            const redeemReward = (reward) => {
+                if (points >= reward.cost) {
+                    if (confirm(`¿Canjear "${reward.title}" por ${reward.cost} puntos? 💖`)) {
+                        setPoints(prev => prev - reward.cost);
+                    }
+                }
+            };
+
+            const resetDailyTasks = () => {
+                if (confirm("¿Lista para un nuevo día? ✨")) {
+                    setTasks(tasks.map(t => ({ ...t, completed: false })));
+                }
+            };
+
+            const clearAllTasks = () => {
+                if (confirm("¿Borrar TODAS las tareas de la lista?")) {
+                    setTasks([]);
+                }
+            };
+
+            const sortedTasks = [...tasks].sort((a, b) => (a.completed === b.completed ? 0 : a.completed ? 1 : -1));
+
+            // --- RENDERIZADO (UI) ---
+            return (
+                <div className="pb-20">
+                    {/* Header Decorativo */}
+                    <div className="bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 pb-20 pt-10 px-6 shadow-lg rounded-b-[2.5rem]">
+                        <div className="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center text-white">
+                            <div className="text-center md:text-left mb-6 md:mb-0 animate-float">
+                                <h1 className="text-4xl font-black tracking-tight flex items-center justify-center md:justify-start gap-3 drop-shadow-md">
+                                    <Icons.Sparkles className="text-yellow-200" />
+                                    Mi Diario de Logros
+                                </h1>
+                                <p className="text-purple-100 mt-2 font-medium opacity-90">Transforma tu lista en recompensas ✨</p>
+                            </div>
+                            
+                            <div className="bg-white/20 backdrop-blur-md rounded-2xl p-4 flex flex-col items-center border border-white/30 shadow-xl transform hover:scale-105 transition-transform duration-300">
+                                <span className="text-xs uppercase tracking-widest text-pink-100 font-bold mb-1">Puntos Disponibles</span>
+                                <div className="text-5xl font-black text-white flex items-center gap-2 drop-shadow-sm">
+                                    <Icons.Heart className="text-pink-200" fill="currentColor" size={32} />
+                                    {points}
+                                </div>
+                            </div>
                         </div>
-                      </div>
-                      
-                      {/* Botón borrar (pequeño en la esquina) */}
-                      <div 
-                         onClick={(e) => { e.stopPropagation(); deleteReward(reward.id); }}
-                         className="absolute top-0 right-0 p-1 opacity-0 group-hover:opacity-100 hover:bg-red-50 text-slate-300 hover:text-red-400 rounded-bl-xl transition-all z-20"
-                      >
-                         <Trash2 size={14} />
-                      </div>
+                    </div>
 
-                       {/* Overlay de Progreso */}
-                       {canAfford && (
-                         <div className="absolute bottom-0 left-0 h-1 bg-purple-400 w-0 group-hover:w-full transition-all duration-500"></div>
-                       )}
-                    </button>
-                  );
-                })}
+                    <div className="max-w-4xl mx-auto px-4 -mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        
+                        {/* SECCIÓN TAREAS (Izquierda) */}
+                        <div className="bg-white rounded-3xl shadow-xl border-2 border-pink-100 overflow-hidden flex flex-col">
+                            <div className="bg-pink-50/50 p-5 border-b border-pink-100 flex justify-between items-center">
+                                <h2 className="text-xl font-bold text-purple-900 flex items-center gap-2">
+                                    <Icons.ListPlus className="text-pink-500" />
+                                    Misiones
+                                </h2>
+                                <div className="flex gap-2">
+                                    <button onClick={resetDailyTasks} className="p-2 text-purple-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors" title="Reiniciar día">
+                                        <Icons.RotateCcw size={18} />
+                                    </button>
+                                    <button onClick={clearAllTasks} className="p-2 text-pink-300 hover:text-red-400 hover:bg-red-50 rounded-full transition-colors" title="Borrar todo">
+                                        <Icons.Trash2 size={18} />
+                                    </button>
+                                </div>
+                            </div>
 
-                {rewards.length === 0 && (
-                  <div className="text-center py-6 text-purple-300 text-sm italic border-2 border-dashed border-purple-100 rounded-2xl">
-                    Agrega premios para motivarte 🎁
-                  </div>
-                )}
-              </div>
+                            <div className="p-5 flex-1">
+                                {/* Input Masivo */}
+                                <form onSubmit={handleBulkAdd} className="mb-6 relative group">
+                                    <textarea
+                                        className="w-full bg-pink-50/50 border-2 border-pink-100 rounded-2xl p-4 text-purple-900 placeholder:text-pink-300 focus:outline-none focus:border-pink-300 focus:bg-white transition-all resize-none text-sm leading-relaxed"
+                                        placeholder="Pega tu lista aquí...&#10;Hacer la cama&#10;Lavar los platos&#10;Enviar correos"
+                                        rows="3"
+                                        value={bulkText}
+                                        onChange={(e) => setBulkText(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleBulkAdd(e);
+                                            }
+                                        }}
+                                    />
+                                    <button 
+                                        type="submit"
+                                        className="absolute bottom-3 right-3 bg-gradient-to-tr from-pink-500 to-purple-500 text-white p-2 rounded-xl shadow-lg hover:shadow-pink-300/50 hover:scale-105 transition-all"
+                                        disabled={!bulkText.trim()}
+                                    >
+                                        <Icons.Plus size={20} />
+                                    </button>
+                                </form>
 
-            {/* Input Nueva Recompensa */}
-            <form onSubmit={handleAddReward} className="bg-purple-50 p-3 rounded-2xl flex gap-2 items-center">
-              <input
-                type="text"
-                placeholder="Nuevo premio..."
-                className="flex-1 bg-transparent px-2 text-purple-900 placeholder:text-purple-300 outline-none text-sm font-medium"
-                value={newReward}
-                onChange={(e) => setNewReward(e.target.value)}
-              />
-              <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-purple-100">
-                <input
-                  type="number"
-                  className="w-10 text-center outline-none text-purple-700 font-bold text-sm"
-                  value={newRewardCost}
-                  onChange={(e) => setNewRewardCost(e.target.value)}
-                  min="1"
-                />
-                <Heart size={10} className="text-purple-300" />
-              </div>
-              <button 
-                type="submit"
-                className="bg-purple-400 hover:bg-purple-500 text-white p-2 rounded-xl transition-colors shadow-sm"
-                disabled={!newReward.trim()}
-              >
-                <Plus size={16} />
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+                                {/* Lista de Tareas */}
+                                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {sortedTasks.length === 0 && (
+                                        <div className="text-center py-10 opacity-40">
+                                            <Icons.ListPlus size={48} className="mx-auto text-pink-300 mb-2" />
+                                            <p className="text-purple-300 font-medium">Lista vacía. ¡Pega tus tareas!</p>
+                                        </div>
+                                    )}
+                                    
+                                    {sortedTasks.map(task => (
+                                        <div 
+                                            key={task.id} 
+                                            className={`group flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 ${
+                                                task.completed 
+                                                ? 'bg-slate-50 border-transparent opacity-50' 
+                                                : 'bg-white border-pink-100 shadow-sm hover:shadow-md hover:border-pink-200'
+                                            }`}
+                                        >
+                                            <button 
+                                                onClick={() => toggleTask(task.id)}
+                                                className="flex-1 flex items-center gap-3 text-left"
+                                            >
+                                                <div className={`transition-all duration-300 transform ${task.completed ? 'scale-110' : 'group-hover:scale-110'}`}>
+                                                    {task.completed 
+                                                        ? <Icons.CheckCircle className="text-green-400" fill="#ecfdf5" size={24} /> 
+                                                        : <Icons.Circle className="text-pink-300 group-hover:text-pink-500" size={24} />
+                                                    }
+                                                </div>
+                                                <span className={`text-sm md:text-base transition-all ${
+                                                    task.completed ? 'line-through text-slate-400' : 'text-purple-900 font-medium'
+                                                }`}>
+                                                    {task.title}
+                                                </span>
+                                            </button>
+                                            
+                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <span className="text-xs font-bold text-pink-400 bg-pink-50 px-2 py-1 rounded-lg">
+                                                    +1
+                                                </span>
+                                                <button 
+                                                    onClick={() => deleteTask(task.id)}
+                                                    className="text-slate-300 hover:text-red-400 p-1"
+                                                >
+                                                    <Icons.Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* SECCIÓN RECOMPENSAS (Derecha) */}
+                        <div className="bg-white rounded-3xl shadow-xl border-2 border-purple-100 overflow-hidden flex flex-col h-fit">
+                            <div className="bg-purple-50/50 p-5 border-b border-purple-100">
+                                <h2 className="text-xl font-bold text-purple-900 flex items-center gap-2">
+                                    <Icons.Trophy className="text-purple-500" />
+                                    Premios
+                                </h2>
+                            </div>
+
+                            <div className="p-5">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 mb-6">
+                                    {rewards.map(reward => {
+                                        const canAfford = points >= reward.cost;
+                                        return (
+                                            <button
+                                                key={reward.id} 
+                                                onClick={() => canAfford && redeemReward(reward)}
+                                                disabled={!canAfford}
+                                                className={`relative w-full text-left p-4 rounded-2xl border-2 transition-all duration-300 group overflow-hidden ${
+                                                    canAfford 
+                                                    ? 'bg-white border-purple-200 hover:border-purple-400 hover:shadow-purple-100 shadow-sm' 
+                                                    : 'bg-slate-50 border-slate-100 opacity-60 cursor-not-allowed'
+                                                }`}
+                                            >
+                                                <div className="flex justify-between items-center z-10 relative">
+                                                    <span className="font-bold text-purple-900 group-hover:text-purple-700">{reward.title}</span>
+                                                    <div className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1">
+                                                        {reward.cost} <Icons.Heart size={12} fill="currentColor" />
+                                                    </div>
+                                                </div>
+                                                
+                                                <div 
+                                                    onClick={(e) => { e.stopPropagation(); deleteReward(reward.id); }}
+                                                    className="absolute top-0 right-0 p-1 opacity-0 group-hover:opacity-100 hover:bg-red-50 text-slate-300 hover:text-red-400 rounded-bl-xl transition-all z-20"
+                                                >
+                                                    <Icons.Trash2 size={14} />
+                                                </div>
+
+                                                {canAfford && (
+                                                    <div className="absolute bottom-0 left-0 h-1 bg-purple-400 w-0 group-hover:w-full transition-all duration-500"></div>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+
+                                    {rewards.length === 0 && (
+                                        <div className="text-center py-6 text-purple-300 text-sm italic border-2 border-dashed border-purple-100 rounded-2xl">
+                                            Agrega premios para motivarte 🎁
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Input Nueva Recompensa */}
+                                <form onSubmit={handleAddReward} className="bg-purple-50 p-3 rounded-2xl flex gap-2 items-center">
+                                    <input
+                                        type="text"
+                                        placeholder="Nuevo premio..."
+                                        className="flex-1 bg-transparent px-2 text-purple-900 placeholder:text-purple-300 outline-none text-sm font-medium"
+                                        value={newReward}
+                                        onChange={(e) => setNewReward(e.target.value)}
+                                    />
+                                    <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-purple-100">
+                                        <input
+                                            type="number"
+                                            className="w-10 text-center outline-none text-purple-700 font-bold text-sm"
+                                            value={newRewardCost}
+                                            onChange={(e) => setNewRewardCost(e.target.value)}
+                                            min="1"
+                                        />
+                                        <Icons.Heart size={10} className="text-purple-300" />
+                                    </div>
+                                    <button 
+                                        type="submit"
+                                        className="bg-purple-400 hover:bg-purple-500 text-white p-2 rounded-xl transition-colors shadow-sm"
+                                        disabled={!newReward.trim()}
+                                    >
+                                        <Icons.Plus size={16} />
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
