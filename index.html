@@ -3,39 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Diario de Logros ✨</title>
-    
-    <!-- React y ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
-    <!-- Babel para traducir JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+    <title>MindQuest - Gamificación Terapéutica</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Configuración de Tailwind -->
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        pink: { 50: '#fdf2f8', 100: '#fce7f3', 200: '#fbcfe8', 300: '#f9a8d4', 400: '#f472b6', 500: '#ec4899', 600: '#db2777' },
-                        purple: { 50: '#faf5ff', 100: '#f3e8ff', 200: '#e9d5ff', 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea', 900: '#581c87' }
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- Iconos Phosphor -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 
     <style>
-        /* Estilos personalizados para scrollbar y animaciones */
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            padding-bottom: 90px; /* Espacio extra para el menú móvil */
+        }
+        
+        /* Animación suave entre secciones */
+        .page-section {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Estilos para la barra de progreso */
+        .progress-bar {
+            transition: width 1s ease-in-out;
+        }
+
+        /* Ocultar scrollbar */
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Estilos específicos para la sección Diario de Logros (Pink) */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #fce7f3; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #f472b6; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #ec4899; }
         
         @keyframes float {
             0% { transform: translateY(0px); }
@@ -44,347 +49,551 @@
         }
         .animate-float { animation: float 3s ease-in-out infinite; }
     </style>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // Colores originales MindQuest
+                        brand: {
+                            50: '#f0fdfa', 100: '#ccfbf1', 500: '#14b8a6', 600: '#0d9488', 900: '#134e4a',
+                        },
+                        accent: { 500: '#8b5cf6' },
+                        // Colores Nuevos (Diario de Logros)
+                        pink: { 50: '#fdf2f8', 100: '#fce7f3', 200: '#fbcfe8', 300: '#f9a8d4', 400: '#f472b6', 500: '#ec4899', 600: '#db2777' },
+                        purple: { 50: '#faf5ff', 100: '#f3e8ff', 200: '#e9d5ff', 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea', 900: '#581c87' }
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body class="bg-pink-50 text-slate-700 min-h-screen">
-    <div id="root"></div>
+<body class="text-gray-800">
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+    <!-- HEADER SUPERIOR -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="bg-brand-100 text-brand-600 p-2 rounded-lg">
+                    <i class="ph ph-brain text-xl"></i>
+                </div>
+                <h1 class="font-bold text-lg text-gray-800">MindQuest</h1>
+            </div>
+            
+            <!-- Estado Gamificación Global -->
+            <div class="flex items-center gap-3 text-sm">
+                <div class="flex flex-col items-end">
+                    <span class="font-bold text-brand-600">Nivel <span id="user-level">2</span></span>
+                    <div class="w-24 h-2 bg-gray-200 rounded-full mt-1 overflow-hidden">
+                        <div id="xp-bar" class="h-full bg-brand-500 progress-bar" style="width: 45%"></div>
+                    </div>
+                </div>
+                <!-- Puntos compartidos -->
+                <div class="bg-amber-100 text-amber-700 px-2 py-1 rounded-md font-bold flex items-center gap-1">
+                    <i class="ph ph-coin"></i> <span id="global-points">120</span>
+                </div>
+            </div>
+        </div>
+    </header>
 
-        // --- ICONOS SVG (Inline para evitar problemas de importación) ---
-        const Icon = ({ path, className, size = 24, fill = "none" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                {path}
-            </svg>
-        );
+    <!-- CONTENEDOR PRINCIPAL -->
+    <main id="app-content" class="max-w-md mx-auto p-4 min-h-screen">
+        
+        <!-- ========================================== -->
+        <!-- PÁGINA 1: INICIO / DASHBOARD -->
+        <!-- ========================================== -->
+        <section id="home" class="page-section">
+            <div class="bg-gradient-to-r from-brand-500 to-brand-600 rounded-2xl p-6 text-white mb-6 shadow-lg">
+                <h2 class="text-2xl font-bold mb-1">¡Hola, Viajero!</h2>
+                <p class="text-brand-100 mb-4">Día 4 de tu transformación.</p>
+                <div class="flex items-center gap-2 bg-white/20 backdrop-blur-sm p-3 rounded-xl inline-flex">
+                    <i class="ph-fill ph-fire text-orange-300 text-xl"></i>
+                    <span class="font-bold">Racha: 3 días</span>
+                </div>
+            </div>
 
-        const Icons = {
-            Sparkles: (props) => <Icon {...props} path={<><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 9h4"/><path d="M3 5h4"/></>} />,
-            Heart: (props) => <Icon {...props} path={<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />} />,
-            ListPlus: (props) => <Icon {...props} path={<><path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="M18 9v6"/><path d="M21 12h-6"/></>} />,
-            RotateCcw: (props) => <Icon {...props} path={<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12" />} />,
-            Trash2: (props) => <Icon {...props} path={<><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></>} />,
-            Plus: (props) => <Icon {...props} path={<><path d="M5 12h14"/><path d="M12 5v14"/></>} />,
-            CheckCircle: (props) => <Icon {...props} path={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>} />,
-            Circle: (props) => <Icon {...props} path={<circle cx="12" cy="12" r="10"/>} />,
-            Trophy: (props) => <Icon {...props} path={<><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></>} />
-        };
+            <h3 class="font-bold text-gray-700 mb-3 text-lg">Reto Diario</h3>
+            <div class="bg-white rounded-xl p-5 border border-gray-100 shadow-sm mb-6 relative overflow-hidden group">
+                <div class="absolute right-0 top-0 bg-accent-500 text-white text-xs font-bold px-2 py-1 rounded-bl-lg">+50 XP</div>
+                <div class="flex gap-4">
+                    <div class="bg-blue-50 text-blue-500 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i class="ph ph-waves text-2xl"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-lg">Respiración 4-7-8</h4>
+                        <p class="text-gray-500 text-sm mb-3">Reduce la ansiedad en 2 minutos.</p>
+                        <button onclick="completeChallenge(this, 50)" class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium active:scale-95 transition-transform w-full">Completar ahora</button>
+                    </div>
+                </div>
+            </div>
 
-        // --- COMPONENTE PRINCIPAL ---
-        function App() {
-            // --- ESTADO ---
-            const [points, setPoints] = useState(() => {
-                const saved = localStorage.getItem('pink_token_points');
-                return saved ? JSON.parse(saved) : 0;
-            });
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="navTo('store')" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-left hover:border-pink-300 transition-colors relative overflow-hidden">
+                    <div class="absolute right-0 top-0 bg-pink-100 text-pink-600 px-2 py-1 text-[10px] font-bold rounded-bl-lg">NUEVO</div>
+                    <i class="ph-duotone ph-gift text-3xl text-pink-500 mb-2"></i>
+                    <div class="font-bold text-gray-800">Mi Tienda</div>
+                    <div class="text-xs text-gray-500">Canjear logros</div>
+                </button>
+                <button onclick="navTo('misiones')" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-left hover:border-brand-300 transition-colors">
+                    <i class="ph-duotone ph-map-trifold text-3xl text-emerald-500 mb-2"></i>
+                    <div class="font-bold text-gray-800">Ruta 60 Días</div>
+                    <div class="text-xs text-gray-500">Ver mapa</div>
+                </button>
+            </div>
+        </section>
 
-            const [tasks, setTasks] = useState(() => {
-                const saved = localStorage.getItem('pink_token_tasks');
-                return saved ? JSON.parse(saved) : [];
-            });
+        <!-- ========================================== -->
+        <!-- PÁGINA 2: RETOS -->
+        <!-- ========================================== -->
+        <section id="retos" class="page-section hidden">
+            <h2 class="text-2xl font-bold mb-4">Explorar Retos</h2>
+            <div class="flex gap-2 overflow-x-auto hide-scroll mb-6 pb-2">
+                <button class="px-4 py-2 bg-gray-800 text-white rounded-full text-sm font-medium whitespace-nowrap">Todos</button>
+                <button class="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-full text-sm font-medium whitespace-nowrap">Ansiedad</button>
+                <button class="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-full text-sm font-medium whitespace-nowrap">Autoestima</button>
+            </div>
+            <div class="space-y-4">
+                <article class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded">Rápido (2 min)</span>
+                        <span class="text-amber-500 font-bold text-sm flex items-center gap-1"><i class="ph-fill ph-coin"></i> 20</span>
+                    </div>
+                    <h3 class="font-bold text-lg text-gray-800">Escaneo Corporal</h3>
+                    <p class="text-gray-500 text-sm mb-4">Cierra los ojos y siente cada parte de tu cuerpo.</p>
+                    <button onclick="completeChallenge(this, 20)" class="w-full py-2 border-2 border-brand-500 text-brand-600 font-bold rounded-lg hover:bg-brand-50 transition-colors">Iniciar Reto</button>
+                </article>
+            </div>
+        </section>
 
-            const [rewards, setRewards] = useState(() => {
-                const saved = localStorage.getItem('pink_token_rewards');
-                return saved ? JSON.parse(saved) : [];
-            });
+        <!-- ========================================== -->
+        <!-- PÁGINA 3: MISIONES (RUTA 60 DÍAS) -->
+        <!-- ========================================== -->
+        <section id="misiones" class="page-section hidden">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold mb-1">Tu Viaje de 60 Días</h2>
+                <p class="text-gray-500 text-sm">Desbloquea cada día completando retos.</p>
+            </div>
 
-            // Entradas
-            const [bulkText, setBulkText] = useState('');
-            const [newReward, setNewReward] = useState('');
-            const [newRewardCost, setNewRewardCost] = useState(10);
+            <!-- Contenedor generado por JS -->
+            <div id="missions-container" class="relative pl-4 space-y-0">
+                <!-- Línea conectora de fondo -->
+                <div class="absolute left-[27px] top-4 bottom-4 w-1 bg-gray-200 -z-10"></div>
+            </div>
+        </section>
 
-            // --- PERSISTENCIA ---
-            useEffect(() => {
-                localStorage.setItem('pink_token_points', JSON.stringify(points));
-                localStorage.setItem('pink_token_tasks', JSON.stringify(tasks));
-                localStorage.setItem('pink_token_rewards', JSON.stringify(rewards));
-            }, [points, tasks, rewards]);
+        <!-- ========================================== -->
+        <!-- PÁGINA 4: DIARIO DE LOGROS (LA TIENDA INTEGRADA) -->
+        <!-- ========================================== -->
+        <section id="store" class="page-section hidden">
+            <!-- Header Decorativo Estilo React Code -->
+            <div class="bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 p-6 rounded-2xl shadow-lg mb-6 text-white relative overflow-hidden">
+                <div class="animate-float relative z-10">
+                    <h1 class="text-2xl font-black tracking-tight flex items-center gap-2 drop-shadow-md">
+                        <i class="ph-fill ph-sparkle text-yellow-200"></i>
+                        Mi Diario de Logros
+                    </h1>
+                    <p class="text-pink-100 text-sm mt-1 font-medium opacity-90">Transforma tareas en premios ✨</p>
+                </div>
+                <div class="absolute right-4 top-4 bg-white/20 backdrop-blur-md rounded-xl p-2 border border-white/30 shadow-xl">
+                    <span class="text-[10px] uppercase tracking-widest text-pink-100 font-bold block text-center">Puntos</span>
+                    <div class="text-2xl font-black text-white flex items-center gap-1 justify-center">
+                        <i class="ph-fill ph-heart text-pink-200"></i>
+                        <span id="store-points-display">120</span>
+                    </div>
+                </div>
+            </div>
 
-            // --- LÓGICA ---
-            const handleBulkAdd = (e) => {
-                e.preventDefault();
-                if (!bulkText.trim()) return;
-                
-                const lines = bulkText.split(/\n/).filter(line => line.trim() !== '');
-                
-                const newTasks = lines.map(line => ({
-                    id: Date.now() + Math.random(),
-                    title: line.trim(),
-                    points: 1,
-                    completed: false
-                }));
-                
-                setTasks([...tasks, ...newTasks]);
-                setBulkText('');
-            };
-
-            const handleAddReward = (e) => {
-                e.preventDefault();
-                if (!newReward.trim()) return;
-
-                const reward = {
-                    id: Date.now(),
-                    title: newReward,
-                    cost: parseInt(newRewardCost)
-                };
-
-                setRewards([...rewards, reward]);
-                setNewReward('');
-                setNewRewardCost(10);
-            };
-
-            const toggleTask = (id) => {
-                setTasks(tasks.map(task => {
-                    if (task.id === id) {
-                        if (task.completed) {
-                            setPoints(prev => Math.max(0, prev - 1));
-                        } else {
-                            setPoints(prev => prev + 1);
-                        }
-                        return { ...task, completed: !task.completed };
-                    }
-                    return task;
-                }));
-            };
-
-            const deleteTask = (id) => {
-                setTasks(tasks.filter(t => t.id !== id));
-            };
-
-            const deleteReward = (id) => {
-                setRewards(rewards.filter(r => r.id !== id));
-            };
-
-            const redeemReward = (reward) => {
-                if (points >= reward.cost) {
-                    if (confirm(`¿Canjear "${reward.title}" por ${reward.cost} puntos? 💖`)) {
-                        setPoints(prev => prev - reward.cost);
-                    }
-                }
-            };
-
-            const resetDailyTasks = () => {
-                if (confirm("¿Lista para un nuevo día? ✨")) {
-                    setTasks(tasks.map(t => ({ ...t, completed: false })));
-                }
-            };
-
-            const clearAllTasks = () => {
-                if (confirm("¿Borrar TODAS las tareas de la lista?")) {
-                    setTasks([]);
-                }
-            };
-
-            const sortedTasks = [...tasks].sort((a, b) => (a.completed === b.completed ? 0 : a.completed ? 1 : -1));
-
-            // --- RENDERIZADO (UI) ---
-            return (
-                <div className="pb-20">
-                    {/* Header Decorativo */}
-                    <div className="bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 pb-20 pt-10 px-6 shadow-lg rounded-b-[2.5rem]">
-                        <div className="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center text-white">
-                            <div className="text-center md:text-left mb-6 md:mb-0 animate-float">
-                                <h1 className="text-4xl font-black tracking-tight flex items-center justify-center md:justify-start gap-3 drop-shadow-md">
-                                    <Icons.Sparkles className="text-yellow-200" />
-                                    Mi Diario de Logros
-                                </h1>
-                                <p className="text-purple-100 mt-2 font-medium opacity-90">Transforma tu lista en recompensas ✨</p>
-                            </div>
-                            
-                            <div className="bg-white/20 backdrop-blur-md rounded-2xl p-4 flex flex-col items-center border border-white/30 shadow-xl transform hover:scale-105 transition-transform duration-300">
-                                <span className="text-xs uppercase tracking-widest text-pink-100 font-bold mb-1">Puntos Disponibles</span>
-                                <div className="text-5xl font-black text-white flex items-center gap-2 drop-shadow-sm">
-                                    <Icons.Heart className="text-pink-200" fill="currentColor" size={32} />
-                                    {points}
-                                </div>
-                            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- SECCIÓN TAREAS -->
+                <div class="bg-white rounded-2xl shadow-sm border-2 border-pink-100 overflow-hidden">
+                    <div class="bg-pink-50/50 p-4 border-b border-pink-100 flex justify-between items-center">
+                        <h2 class="font-bold text-purple-900 flex items-center gap-2">
+                            <i class="ph-bold ph-list-plus text-pink-500"></i> Misiones
+                        </h2>
+                        <div class="flex gap-2">
+                            <button onclick="resetDailyTasks()" class="p-2 text-purple-400 hover:bg-purple-50 rounded-full"><i class="ph-bold ph-arrow-counter-clockwise"></i></button>
+                            <button onclick="clearAllTasks()" class="p-2 text-pink-300 hover:text-red-400 hover:bg-red-50 rounded-full"><i class="ph-bold ph-trash"></i></button>
                         </div>
                     </div>
-
-                    <div className="max-w-4xl mx-auto px-4 -mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        
-                        {/* SECCIÓN TAREAS (Izquierda) */}
-                        <div className="bg-white rounded-3xl shadow-xl border-2 border-pink-100 overflow-hidden flex flex-col">
-                            <div className="bg-pink-50/50 p-5 border-b border-pink-100 flex justify-between items-center">
-                                <h2 className="text-xl font-bold text-purple-900 flex items-center gap-2">
-                                    <Icons.ListPlus className="text-pink-500" />
-                                    Misiones
-                                </h2>
-                                <div className="flex gap-2">
-                                    <button onClick={resetDailyTasks} className="p-2 text-purple-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors" title="Reiniciar día">
-                                        <Icons.RotateCcw size={18} />
-                                    </button>
-                                    <button onClick={clearAllTasks} className="p-2 text-pink-300 hover:text-red-400 hover:bg-red-50 rounded-full transition-colors" title="Borrar todo">
-                                        <Icons.Trash2 size={18} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="p-5 flex-1">
-                                {/* Input Masivo */}
-                                <form onSubmit={handleBulkAdd} className="mb-6 relative group">
-                                    <textarea
-                                        className="w-full bg-pink-50/50 border-2 border-pink-100 rounded-2xl p-4 text-purple-900 placeholder:text-pink-300 focus:outline-none focus:border-pink-300 focus:bg-white transition-all resize-none text-sm leading-relaxed"
-                                        placeholder="Pega tu lista aquí...&#10;Hacer la cama&#10;Lavar los platos&#10;Enviar correos"
-                                        rows="3"
-                                        value={bulkText}
-                                        onChange={(e) => setBulkText(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !e.shiftKey) {
-                                                e.preventDefault();
-                                                handleBulkAdd(e);
-                                            }
-                                        }}
-                                    />
-                                    <button 
-                                        type="submit"
-                                        className="absolute bottom-3 right-3 bg-gradient-to-tr from-pink-500 to-purple-500 text-white p-2 rounded-xl shadow-lg hover:shadow-pink-300/50 hover:scale-105 transition-all"
-                                        disabled={!bulkText.trim()}
-                                    >
-                                        <Icons.Plus size={20} />
-                                    </button>
-                                </form>
-
-                                {/* Lista de Tareas */}
-                                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                                    {sortedTasks.length === 0 && (
-                                        <div className="text-center py-10 opacity-40">
-                                            <Icons.ListPlus size={48} className="mx-auto text-pink-300 mb-2" />
-                                            <p className="text-purple-300 font-medium">Lista vacía. ¡Pega tus tareas!</p>
-                                        </div>
-                                    )}
-                                    
-                                    {sortedTasks.map(task => (
-                                        <div 
-                                            key={task.id} 
-                                            className={`group flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 ${
-                                                task.completed 
-                                                ? 'bg-slate-50 border-transparent opacity-50' 
-                                                : 'bg-white border-pink-100 shadow-sm hover:shadow-md hover:border-pink-200'
-                                            }`}
-                                        >
-                                            <button 
-                                                onClick={() => toggleTask(task.id)}
-                                                className="flex-1 flex items-center gap-3 text-left"
-                                            >
-                                                <div className={`transition-all duration-300 transform ${task.completed ? 'scale-110' : 'group-hover:scale-110'}`}>
-                                                    {task.completed 
-                                                        ? <Icons.CheckCircle className="text-green-400" fill="#ecfdf5" size={24} /> 
-                                                        : <Icons.Circle className="text-pink-300 group-hover:text-pink-500" size={24} />
-                                                    }
-                                                </div>
-                                                <span className={`text-sm md:text-base transition-all ${
-                                                    task.completed ? 'line-through text-slate-400' : 'text-purple-900 font-medium'
-                                                }`}>
-                                                    {task.title}
-                                                </span>
-                                            </button>
-                                            
-                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <span className="text-xs font-bold text-pink-400 bg-pink-50 px-2 py-1 rounded-lg">
-                                                    +1
-                                                </span>
-                                                <button 
-                                                    onClick={() => deleteTask(task.id)}
-                                                    className="text-slate-300 hover:text-red-400 p-1"
-                                                >
-                                                    <Icons.Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                    
+                    <div class="p-4">
+                        <!-- Input Masivo -->
+                        <div class="relative mb-4">
+                            <textarea id="bulk-input" class="w-full bg-pink-50/50 border-2 border-pink-100 rounded-xl p-3 text-purple-900 placeholder:text-pink-300 focus:outline-none focus:border-pink-300 text-sm" placeholder="Escribe tareas y presiona enter..."></textarea>
+                            <button onclick="handleBulkAdd()" class="absolute bottom-2 right-2 bg-gradient-to-tr from-pink-500 to-purple-500 text-white p-1.5 rounded-lg shadow-md hover:scale-105 transition-transform">
+                                <i class="ph-bold ph-plus"></i>
+                            </button>
                         </div>
 
-                        {/* SECCIÓN RECOMPENSAS (Derecha) */}
-                        <div className="bg-white rounded-3xl shadow-xl border-2 border-purple-100 overflow-hidden flex flex-col h-fit">
-                            <div className="bg-purple-50/50 p-5 border-b border-purple-100">
-                                <h2 className="text-xl font-bold text-purple-900 flex items-center gap-2">
-                                    <Icons.Trophy className="text-purple-500" />
-                                    Premios
-                                </h2>
-                            </div>
-
-                            <div className="p-5">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 mb-6">
-                                    {rewards.map(reward => {
-                                        const canAfford = points >= reward.cost;
-                                        return (
-                                            <button
-                                                key={reward.id} 
-                                                onClick={() => canAfford && redeemReward(reward)}
-                                                disabled={!canAfford}
-                                                className={`relative w-full text-left p-4 rounded-2xl border-2 transition-all duration-300 group overflow-hidden ${
-                                                    canAfford 
-                                                    ? 'bg-white border-purple-200 hover:border-purple-400 hover:shadow-purple-100 shadow-sm' 
-                                                    : 'bg-slate-50 border-slate-100 opacity-60 cursor-not-allowed'
-                                                }`}
-                                            >
-                                                <div className="flex justify-between items-center z-10 relative">
-                                                    <span className="font-bold text-purple-900 group-hover:text-purple-700">{reward.title}</span>
-                                                    <div className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1">
-                                                        {reward.cost} <Icons.Heart size={12} fill="currentColor" />
-                                                    </div>
-                                                </div>
-                                                
-                                                <div 
-                                                    onClick={(e) => { e.stopPropagation(); deleteReward(reward.id); }}
-                                                    className="absolute top-0 right-0 p-1 opacity-0 group-hover:opacity-100 hover:bg-red-50 text-slate-300 hover:text-red-400 rounded-bl-xl transition-all z-20"
-                                                >
-                                                    <Icons.Trash2 size={14} />
-                                                </div>
-
-                                                {canAfford && (
-                                                    <div className="absolute bottom-0 left-0 h-1 bg-purple-400 w-0 group-hover:w-full transition-all duration-500"></div>
-                                                )}
-                                            </button>
-                                        );
-                                    })}
-
-                                    {rewards.length === 0 && (
-                                        <div className="text-center py-6 text-purple-300 text-sm italic border-2 border-dashed border-purple-100 rounded-2xl">
-                                            Agrega premios para motivarte 🎁
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Input Nueva Recompensa */}
-                                <form onSubmit={handleAddReward} className="bg-purple-50 p-3 rounded-2xl flex gap-2 items-center">
-                                    <input
-                                        type="text"
-                                        placeholder="Nuevo premio..."
-                                        className="flex-1 bg-transparent px-2 text-purple-900 placeholder:text-purple-300 outline-none text-sm font-medium"
-                                        value={newReward}
-                                        onChange={(e) => setNewReward(e.target.value)}
-                                    />
-                                    <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-purple-100">
-                                        <input
-                                            type="number"
-                                            className="w-10 text-center outline-none text-purple-700 font-bold text-sm"
-                                            value={newRewardCost}
-                                            onChange={(e) => setNewRewardCost(e.target.value)}
-                                            min="1"
-                                        />
-                                        <Icons.Heart size={10} className="text-purple-300" />
-                                    </div>
-                                    <button 
-                                        type="submit"
-                                        className="bg-purple-400 hover:bg-purple-500 text-white p-2 rounded-xl transition-colors shadow-sm"
-                                        disabled={!newReward.trim()}
-                                    >
-                                        <Icons.Plus size={16} />
-                                    </button>
-                                </form>
-                            </div>
+                        <!-- Lista Tareas -->
+                        <div id="tasks-list" class="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+                            <!-- JS Renders here -->
                         </div>
                     </div>
                 </div>
-            );
+
+                <!-- SECCIÓN RECOMPENSAS -->
+                <div class="bg-white rounded-2xl shadow-sm border-2 border-purple-100 overflow-hidden">
+                    <div class="bg-purple-50/50 p-4 border-b border-purple-100">
+                        <h2 class="font-bold text-purple-900 flex items-center gap-2">
+                            <i class="ph-fill ph-trophy text-purple-500"></i> Premios
+                        </h2>
+                    </div>
+                    
+                    <div class="p-4">
+                        <div id="rewards-list" class="grid grid-cols-1 gap-2 mb-4">
+                            <!-- JS Renders here -->
+                        </div>
+
+                        <!-- Add Reward Form -->
+                        <div class="bg-purple-50 p-3 rounded-xl flex gap-2 items-center">
+                            <input id="new-reward-title" type="text" placeholder="Nuevo premio..." class="flex-1 bg-transparent text-purple-900 placeholder:text-purple-300 outline-none text-sm">
+                            <input id="new-reward-cost" type="number" value="10" class="w-12 text-center bg-white rounded-lg text-purple-700 font-bold text-sm border border-purple-100">
+                            <button onclick="addReward()" class="bg-purple-400 text-white p-2 rounded-lg hover:bg-purple-500"><i class="ph-bold ph-plus"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- PÁGINA 5: PROGRESO -->
+        <!-- ========================================== -->
+        <section id="progreso" class="page-section hidden">
+            <h2 class="text-2xl font-bold mb-6">Tu Progreso</h2>
+            <div class="grid grid-cols-2 gap-4 mb-8">
+                <div class="bg-white p-4 rounded-xl shadow-sm text-center">
+                    <div class="text-3xl font-bold text-brand-600 mb-1">12</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Retos Totales</div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm text-center">
+                    <div class="text-3xl font-bold text-accent-500 mb-1">5</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Días seguidos</div>
+                </div>
+            </div>
+            <h3 class="font-bold text-gray-800 mb-4">Insignias</h3>
+            <div class="grid grid-cols-3 gap-3 mb-8">
+                <div class="aspect-square bg-white rounded-xl shadow-sm flex flex-col items-center justify-center p-2 border-2 border-yellow-200">
+                    <i class="ph-fill ph-medal text-4xl text-yellow-400 mb-1"></i>
+                    <span class="text-[10px] font-bold text-center leading-tight">Primeros pasos</span>
+                </div>
+                <div class="aspect-square bg-white rounded-xl shadow-sm flex flex-col items-center justify-center p-2 border-2 border-blue-200">
+                    <i class="ph-fill ph-drop text-4xl text-blue-400 mb-1"></i>
+                    <span class="text-[10px] font-bold text-center leading-tight">Calma Total</span>
+                </div>
+                <div class="aspect-square bg-gray-100 rounded-xl flex flex-col items-center justify-center p-2 opacity-50 grayscale">
+                    <i class="ph-fill ph-trophy text-4xl mb-1"></i>
+                    <span class="text-[10px] font-bold text-center leading-tight">Maestro Zen</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- PÁGINA 6: DIARIO (TEXTO) -->
+        <!-- ========================================== -->
+        <section id="diario" class="page-section hidden">
+            <h2 class="text-2xl font-bold mb-4">Check-in Diario</h2>
+            <form id="journalForm" onsubmit="saveEntry(event)" class="space-y-6">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <label class="block text-sm font-bold text-gray-700 mb-3">¿Cómo te sientes ahora?</label>
+                    <div class="flex justify-between text-3xl">
+                        <label class="cursor-pointer hover:scale-110"><input type="radio" name="mood" value="1" class="hidden">😫</label>
+                        <label class="cursor-pointer hover:scale-110"><input type="radio" name="mood" value="3" class="hidden">😐</label>
+                        <label class="cursor-pointer hover:scale-110"><input type="radio" name="mood" value="5" class="hidden" checked>😁</label>
+                    </div>
+                </div>
+                <textarea class="w-full p-3 bg-gray-50 rounded-lg border border-gray-200 h-32" placeholder="Hoy me sentí..."></textarea>
+                <button type="submit" class="w-full bg-brand-600 text-white py-3 rounded-xl font-bold">Guardar Entrada</button>
+            </form>
+            <div id="save-message" class="hidden mt-4 p-3 bg-green-100 text-green-700 rounded-lg text-center text-sm">¡Entrada guardada! +10 XP</div>
+        </section>
+
+        <div class="h-16"></div>
+    </main>
+
+    <!-- MENU DE NAVEGACIÓN INFERIOR -->
+    <nav class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around py-3 px-2 z-50 text-xs font-medium text-gray-400 safe-area-bottom">
+        <button onclick="navTo('home')" class="nav-btn active flex flex-col items-center gap-1 w-full text-brand-600" data-target="home">
+            <i class="ph-fill ph-house text-2xl"></i><span>Inicio</span>
+        </button>
+        <button onclick="navTo('retos')" class="nav-btn flex flex-col items-center gap-1 w-full hover:text-brand-500" data-target="retos">
+            <i class="ph ph-target text-2xl"></i><span>Retos</span>
+        </button>
+        <!-- Botón destacado central para la Tienda -->
+        <button onclick="navTo('store')" class="nav-btn flex flex-col items-center gap-1 w-full hover:text-pink-500 -mt-6" data-target="store">
+            <div class="bg-gradient-to-tr from-pink-500 to-purple-500 p-3 rounded-full shadow-lg border-4 border-white text-white">
+                <i class="ph-fill ph-trophy text-2xl"></i>
+            </div>
+            <span class="text-purple-600 font-bold mt-1">Tienda</span>
+        </button>
+        <button onclick="navTo('misiones')" class="nav-btn flex flex-col items-center gap-1 w-full hover:text-brand-500" data-target="misiones">
+            <i class="ph ph-map-trifold text-2xl"></i><span>Ruta</span>
+        </button>
+        <button onclick="navTo('progreso')" class="nav-btn flex flex-col items-center gap-1 w-full hover:text-brand-500" data-target="progreso">
+            <i class="ph ph-chart-bar text-2xl"></i><span>Progreso</span>
+        </button>
+    </nav>
+
+    <!-- LÓGICA JAVASCRIPT -->
+    <script>
+        // --- 1. CONFIGURACIÓN GLOBAL ---
+        let globalPoints = 120; // Puntos compartidos entre App y Tienda
+        const maxPointsLevel = 200;
+
+        // --- 2. NAVEGACIÓN ---
+        function navTo(sectionId) {
+            document.querySelectorAll('.page-section').forEach(el => el.classList.add('hidden'));
+            document.getElementById(sectionId).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if(!btn.querySelector('.bg-gradient-to-tr')) { // Ignorar el botón central especial
+                    btn.classList.remove('text-brand-600');
+                    const icon = btn.querySelector('i');
+                    if(icon) {
+                        icon.classList.remove('ph-fill');
+                        icon.classList.add('ph');
+                    }
+                }
+            });
+
+            const activeBtn = document.querySelector(`button[data-target="${sectionId}"]`);
+            if(activeBtn && !activeBtn.querySelector('.bg-gradient-to-tr')) {
+                activeBtn.classList.add('text-brand-600');
+                activeBtn.querySelector('i').classList.remove('ph');
+                activeBtn.querySelector('i').classList.add('ph-fill');
+            }
+            window.scrollTo(0,0);
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        // --- 3. SISTEMA DE GAMIFICACIÓN CORE ---
+        function updateGlobalPoints(amount) {
+            globalPoints += amount;
+            // Actualizar todos los contadores en la UI con verificaciones de seguridad
+            
+            // 1. Contador principal en el header (global-points)
+            const globalPointsEl = document.getElementById('global-points');
+            if (globalPointsEl) globalPointsEl.innerText = globalPoints;
+
+            // 2. Contador antiguo (user-points) - Comprobamos si existe para evitar el error
+            const userPointsEl = document.getElementById('user-points');
+            if (userPointsEl) userPointsEl.innerText = globalPoints;
+
+            // 3. Contador de la tienda (store-points-display)
+            const storePointsEl = document.getElementById('store-points-display');
+            if (storePointsEl) storePointsEl.innerText = globalPoints;
+            
+            // Barra progreso
+            let percentage = (globalPoints / maxPointsLevel) * 100;
+            if (percentage > 100) percentage = 100;
+            const xpBar = document.getElementById('xp-bar');
+            if (xpBar) xpBar.style.width = percentage + '%';
+        }
+
+        function completeChallenge(btn, points) {
+            btn.innerHTML = `<i class="ph-bold ph-check"></i> ¡Completado!`;
+            btn.classList.remove('bg-gray-900', 'text-white');
+            btn.classList.add('bg-green-500', 'text-white');
+            btn.disabled = true;
+            updateGlobalPoints(points);
+        }
+
+        function saveEntry(e) {
+            e.preventDefault();
+            const msg = document.getElementById('save-message');
+            if (msg) {
+                msg.classList.remove('hidden');
+                updateGlobalPoints(10);
+                setTimeout(() => {
+                    msg.classList.add('hidden');
+                    const form = document.getElementById('journalForm');
+                    if(form) form.reset();
+                }, 3000);
+            }
+        }
+
+        // --- 4. GENERADOR DE RUTA DE 60 DÍAS ---
+        function initMissionsRoute() {
+            const container = document.getElementById('missions-container');
+            if (!container) return; // Seguridad extra
+            
+            const currentDay = 4; // Simulado
+            
+            let html = '';
+            for (let i = 1; i <= 60; i++) {
+                const isPast = i < currentDay;
+                const isCurrent = i === currentDay;
+                const isLocked = i > currentDay;
+
+                // Definir estilo según estado
+                let circleClass = isLocked ? 'bg-gray-200 text-gray-400' : (isCurrent ? 'bg-brand-500 text-white ring-4 ring-brand-100' : 'bg-green-500 text-white');
+                let icon = isPast ? '<i class="ph-bold ph-check"></i>' : (isLocked ? '<i class="ph-fill ph-lock-key"></i>' : i);
+                let opacity = isLocked ? 'opacity-50' : 'opacity-100';
+                
+                // Títulos simulados para los primeros días
+                let title = `Día ${i}`;
+                if(i===1) title = "Día 1: Identificar emociones";
+                if(i===2) title = "Día 2: La pausa sagrada";
+                if(i===3) title = "Día 3: Respiración diafragmática";
+                if(i===4) title = "Día 4: Mindful Eating";
+                if(i===7) title = "Día 7: HITO SEMANAL 🏆";
+                if(i===30) title = "Día 30: MITAD DE CAMINO 🔥";
+                if(i===60) title = "Día 60: GRAN FINAL 👑";
+
+                html += `
+                <div class="flex items-center gap-4 py-3 ${opacity}">
+                    <div class="w-8 h-8 rounded-full ${circleClass} flex items-center justify-center font-bold z-10 shrink-0 border-2 border-white shadow-sm transition-transform hover:scale-110 cursor-pointer">
+                        ${icon}
+                    </div>
+                    <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex-1 relative">
+                        ${isCurrent ? '<span class="absolute -top-2 -right-2 bg-brand-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">HOY</span>' : ''}
+                        <h4 class="font-bold text-gray-800 text-sm">${title}</h4>
+                        ${!isLocked ? '<p class="text-xs text-green-600 font-medium">Completado +50XP</p>' : ''}
+                    </div>
+                </div>
+                `;
+            }
+            container.innerHTML += html;
+        }
+
+        // --- 5. LOGIC DIARIO DE LOGROS (PORTADO A VANILLA JS) ---
+        // Estado local para la tienda
+        let tasks = JSON.parse(localStorage.getItem('store_tasks')) || [
+            { id: 1, title: 'Hacer la cama', completed: false },
+            { id: 2, title: 'Beber 2L de agua', completed: false }
+        ];
+        let rewards = JSON.parse(localStorage.getItem('store_rewards')) || [
+            { id: 1, title: 'Ver 1 cap. de serie', cost: 50 },
+            { id: 2, title: 'Comprar un dulce', cost: 20 }
+        ];
+
+        function renderStore() {
+            // Render Tareas
+            const tasksList = document.getElementById('tasks-list');
+            if (tasksList) {
+                tasksList.innerHTML = '';
+                
+                // Ordenar: completadas al final
+                tasks.sort((a, b) => a.completed - b.completed);
+
+                tasks.forEach(task => {
+                    const div = document.createElement('div');
+                    div.className = `group flex items-center justify-between p-3 rounded-2xl border transition-all ${task.completed ? 'bg-slate-50 border-transparent opacity-50' : 'bg-white border-pink-100 shadow-sm hover:border-pink-200'}`;
+                    div.innerHTML = `
+                        <button onclick="toggleTask(${task.id})" class="flex-1 flex items-center gap-3 text-left">
+                            <div class="${task.completed ? 'text-green-400' : 'text-pink-300 group-hover:text-pink-500'}">
+                                ${task.completed ? '<i class="ph-fill ph-check-circle text-2xl"></i>' : '<i class="ph ph-circle text-2xl"></i>'}
+                            </div>
+                            <span class="${task.completed ? 'line-through text-slate-400' : 'text-purple-900 font-medium'} text-sm">${task.title}</span>
+                        </button>
+                        <button onclick="deleteTask(${task.id})" class="text-slate-300 hover:text-red-400 p-1"><i class="ph-bold ph-trash"></i></button>
+                    `;
+                    tasksList.appendChild(div);
+                });
+            }
+
+            // Render Recompensas
+            const rewardsList = document.getElementById('rewards-list');
+            if (rewardsList) {
+                rewardsList.innerHTML = '';
+                rewards.forEach(reward => {
+                    const canAfford = globalPoints >= reward.cost;
+                    const div = document.createElement('div');
+                    div.className = `relative w-full text-left p-3 rounded-xl border-2 transition-all group overflow-hidden ${canAfford ? 'bg-white border-purple-200 hover:border-purple-400 cursor-pointer' : 'bg-slate-50 border-slate-100 opacity-60'}`;
+                    div.onclick = () => canAfford && redeemReward(reward.id, reward.cost, reward.title);
+                    div.innerHTML = `
+                        <div class="flex justify-between items-center z-10 relative">
+                            <span class="font-bold text-purple-900 text-sm">${reward.title}</span>
+                            <div class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
+                                ${reward.cost} <i class="ph-fill ph-heart text-[10px]"></i>
+                            </div>
+                        </div>
+                        <button onclick="event.stopPropagation(); deleteReward(${reward.id})" class="absolute top-0 right-0 p-1 opacity-0 group-hover:opacity-100 text-red-400 hover:bg-red-50"><i class="ph-bold ph-trash text-xs"></i></button>
+                    `;
+                    rewardsList.appendChild(div);
+                });
+            }
+
+            // Guardar en Storage
+            localStorage.setItem('store_tasks', JSON.stringify(tasks));
+            localStorage.setItem('store_rewards', JSON.stringify(rewards));
+            // Actualizar UI Puntos
+            const storePointsEl = document.getElementById('store-points-display');
+            if(storePointsEl) storePointsEl.innerText = globalPoints;
+            
+            const globalPointsEl = document.getElementById('global-points');
+            if(globalPointsEl) globalPointsEl.innerText = globalPoints;
+        }
+
+        // Funciones Tienda
+        function handleBulkAdd() {
+            const input = document.getElementById('bulk-input');
+            if(!input || !input.value.trim()) return;
+            const lines = input.value.split(/\n/).filter(l => l.trim() !== '');
+            lines.forEach(line => {
+                tasks.push({ id: Date.now() + Math.random(), title: line.trim(), completed: false });
+            });
+            input.value = '';
+            renderStore();
+        }
+
+        function toggleTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if(task) {
+                task.completed = !task.completed;
+                updateGlobalPoints(task.completed ? 1 : -1); // +1 por tarea, -1 si se desmarca
+                renderStore();
+            }
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            renderStore();
+        }
+
+        function addReward() {
+            const titleEl = document.getElementById('new-reward-title');
+            const costEl = document.getElementById('new-reward-cost');
+            if(!titleEl || !costEl) return;
+            
+            const title = titleEl.value;
+            const cost = parseInt(costEl.value);
+            
+            if(title && cost) {
+                rewards.push({ id: Date.now(), title, cost });
+                titleEl.value = '';
+                renderStore();
+            }
+        }
+
+        function deleteReward(id) {
+            rewards = rewards.filter(r => r.id !== id);
+            renderStore();
+        }
+
+        function redeemReward(id, cost, title) {
+            if(confirm(`¿Canjear "${title}" por ${cost} puntos?`)) {
+                updateGlobalPoints(-cost);
+                renderStore();
+            }
+        }
+        
+        function clearAllTasks() {
+            if(confirm("¿Borrar todo?")) {
+                tasks = [];
+                renderStore();
+            }
+        }
+        
+        function resetDailyTasks() {
+            tasks.forEach(t => t.completed = false);
+            renderStore();
+        }
+
+        // --- INICIALIZACIÓN ---
+        initMissionsRoute();
+        renderStore();
+        updateGlobalPoints(0); // Sync inicial
     </script>
 </body>
 </html>
