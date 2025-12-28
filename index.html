@@ -1,599 +1,1057 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MindQuest - Gamificación Terapéutica</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Iconos Phosphor -->
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <!-- Google Fonts: Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Brain, CheckSquare, Heart, Sparkles, Trash2, Download, Image as ImageIcon, 
+  FileText, Calendar, Palette, ChevronDown, ChevronRight, Trophy, ShoppingBag, 
+  RotateCcw, BookOpen, Search, Library, User, Users, GraduationCap, Quote, 
+  FileSpreadsheet, PenTool, Smile, Frown, Meh, ExternalLink, X, Bell, 
+  Battery, BatteryCharging, BatteryWarning, Zap, Play, Clock, ArrowRight, 
+  ShieldCheck, PlusCircle, CheckCircle2, Circle, Edit2, AlertCircle, LifeBuoy,
+  Target, Filter, AlertTriangle
+} from 'lucide-react';
 
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
-            padding-bottom: 90px; /* Espacio extra para el menú móvil */
-        }
-        
-        /* Animación suave entre secciones */
-        .page-section {
-            animation: fadeIn 0.3s ease-in-out;
-        }
+// --- UTILIDADES ROBUSTAS ---
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
 
-        /* Estilos para la barra de progreso */
-        .progress-bar {
-            transition: width 1s ease-in-out;
-        }
+const useLocalStorage = (key, initialValue) => {
+  const [storedValue, setStoredValue] = useState(() => {
+    if (typeof window === "undefined") return initialValue;
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      console.warn(`Error reading localStorage key "${key}":`, error);
+      return initialValue;
+    }
+  });
 
-        /* Ocultar scrollbar */
-        .hide-scroll::-webkit-scrollbar { display: none; }
-        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+  const setValue = (value) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      }
+    } catch (error) {
+      console.warn(`Error saving localStorage key "${key}":`, error);
+    }
+  };
 
-        /* Estilos específicos para la sección Diario de Logros (Pink) */
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #fce7f3; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #f472b6; border-radius: 10px; }
-        
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-5px); }
-            100% { transform: translateY(0px); }
-        }
-        .animate-float { animation: float 3s ease-in-out infinite; }
-    </style>
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        // Colores originales MindQuest
-                        brand: {
-                            50: '#f0fdfa', 100: '#ccfbf1', 500: '#14b8a6', 600: '#0d9488', 900: '#134e4a',
-                        },
-                        accent: { 500: '#8b5cf6' },
-                        // Colores Nuevos (Diario de Logros)
-                        pink: { 50: '#fdf2f8', 100: '#fce7f3', 200: '#fbcfe8', 300: '#f9a8d4', 400: '#f472b6', 500: '#ec4899', 600: '#db2777' },
-                        purple: { 50: '#faf5ff', 100: '#f3e8ff', 200: '#e9d5ff', 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea', 900: '#581c87' }
-                    }
-                }
-            }
-        }
-    </script>
-</head>
-<body class="text-gray-800">
+  return [storedValue, setValue];
+};
 
-    <!-- HEADER SUPERIOR -->
-    <header class="bg-white shadow-sm sticky top-0 z-50">
-        <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <div class="bg-brand-100 text-brand-600 p-2 rounded-lg">
-                    <i class="ph ph-brain text-xl"></i>
-                </div>
-                <h1 class="font-bold text-lg text-gray-800">MindQuest</h1>
+// --- CONFIGURACIÓN ESTÉTICA ---
+
+const CATEGORIES_CONFIG = {
+  'Universidad': { 
+    bg: 'bg-blue-50/90', border: 'border-blue-200', text: 'text-blue-900', 
+    badge: 'bg-blue-100 text-blue-800', iconColor: 'text-blue-700',
+    icon: <GraduationCap className="w-5 h-5" /> 
+  },
+  'Pendientes Personales': { 
+    bg: 'bg-emerald-50/90', border: 'border-emerald-200', text: 'text-emerald-900', 
+    badge: 'bg-emerald-100 text-emerald-800', iconColor: 'text-emerald-700',
+    icon: <User className="w-5 h-5" /> 
+  },
+  'Pendientes Creativos': { 
+    bg: 'bg-purple-50/90', border: 'border-purple-200', text: 'text-purple-900', 
+    badge: 'bg-purple-100 text-purple-800', iconColor: 'text-purple-700',
+    icon: <Palette className="w-5 h-5" /> 
+  },
+  'Pendientes Miguel': { 
+    bg: 'bg-cyan-50/90', border: 'border-cyan-200', text: 'text-cyan-900', 
+    badge: 'bg-cyan-100 text-cyan-800', iconColor: 'text-cyan-700',
+    icon: <Users className="w-5 h-5" /> 
+  },
+  'Pendientes Juan': { 
+    bg: 'bg-orange-50/90', border: 'border-orange-200', text: 'text-orange-900', 
+    badge: 'bg-orange-100 text-orange-800', iconColor: 'text-orange-700',
+    icon: <Users className="w-5 h-5" /> 
+  },
+  'Pendientes Eimy': { 
+    bg: 'bg-rose-50/90', border: 'border-rose-200', text: 'text-rose-900', 
+    badge: 'bg-rose-100 text-rose-800', iconColor: 'text-rose-700',
+    icon: <Users className="w-5 h-5" /> 
+  },
+  'Pendientes Emily': { 
+    bg: 'bg-teal-50/90', border: 'border-teal-200', text: 'text-teal-900', 
+    badge: 'bg-teal-100 text-teal-800', iconColor: 'text-teal-700',
+    icon: <Users className="w-5 h-5" /> 
+  },
+  'General': { 
+    bg: 'bg-slate-50/90', border: 'border-slate-200', text: 'text-slate-900', 
+    badge: 'bg-slate-200 text-slate-700', iconColor: 'text-slate-600',
+    icon: <CheckSquare className="w-5 h-5" /> 
+  },
+};
+
+const RESEARCH_SECTIONS = [
+  { id: 'Bandeja de Entrada', icon: <Search className="w-4 h-4"/>, color: 'slate' },
+  { id: 'Introducción', icon: <PenTool className="w-4 h-4"/>, color: 'blue' },
+  { id: 'Marco Teórico', icon: <Library className="w-4 h-4"/>, color: 'violet' },
+  { id: 'Justificación', icon: <ShieldCheck className="w-4 h-4"/>, color: 'emerald' },
+  { id: 'Estado del Arte', icon: <FileSpreadsheet className="w-4 h-4"/>, color: 'amber' },
+  { id: 'Citas', icon: <Quote className="w-4 h-4"/>, color: 'rose' },
+];
+
+const ENERGY_LEVELS = [
+  { id: 'high', icon: <BatteryCharging className="w-6 h-6"/>, label: 'Alta', 
+    activeClass: 'bg-emerald-100 border-emerald-300 text-emerald-800 ring-2 ring-emerald-200 shadow-lg shadow-emerald-100' },
+  { id: 'medium', icon: <Battery className="w-6 h-6"/>, label: 'Media', 
+    activeClass: 'bg-violet-100 border-violet-300 text-violet-800 ring-2 ring-violet-200 shadow-lg shadow-violet-100' },
+  { id: 'low', icon: <BatteryWarning className="w-6 h-6"/>, label: 'Baja', 
+    activeClass: 'bg-amber-100 border-amber-300 text-amber-800 ring-2 ring-amber-200 shadow-lg shadow-amber-100' },
+];
+
+const DEFAULT_REWARDS = [
+    { id: 1, name: "Ver 1 episodio de serie", cost: 50, icon: "📺" },
+    { id: 2, name: "Comprar un café especial", cost: 100, icon: "☕" },
+    { id: 3, name: "30 min de videojuegos", cost: 80, icon: "🎮" },
+    { id: 4, name: "Día libre de culpa", cost: 500, icon: "🌈" },
+    { id: 5, name: "Scroll en redes (15 min)", cost: 30, icon: "📱" },
+];
+
+// --- COMPONENTE PRINCIPAL ---
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('brain'); 
+  const [points, setPoints] = useLocalStorage('userPoints', 0);
+  const [level, setLevel] = useState(1);
+  const [showRewardShop, setShowRewardShop] = useState(false);
+  const [notification, setNotification] = useState(null);
+
+  // Estados para el Modal Personalizado
+  const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
+
+  useEffect(() => {
+    setLevel(Math.floor(points / 100) + 1);
+  }, [points]);
+
+  const showToast = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), type === 'error' ? 5000 : 3500);
+  };
+
+  const addPoints = (amount) => {
+    setPoints(prev => prev + amount);
+    if (amount > 0) {
+      const badge = document.getElementById('points-badge');
+      if (badge) {
+        badge.classList.add('scale-110', 'bg-amber-100', 'ring-4', 'ring-amber-50'); 
+        setTimeout(() => badge.classList.remove('scale-110', 'bg-amber-100', 'ring-4', 'ring-amber-50'), 300);
+      }
+    }
+  };
+
+  // Función Helper para Confirmación
+  const requestConfirm = (message, onConfirm) => {
+    setConfirmModal({
+        show: true,
+        message,
+        onConfirm: () => {
+            onConfirm();
+            setConfirmModal({ show: false, message: '', onConfirm: null });
+        }
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FDFCFD] font-sans text-slate-800 pb-28 md:pb-12 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-50/40 via-white to-rose-50/40">
+      
+      {/* Header Glassmorphism */}
+      <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/70 border-b border-white/50 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
+        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-tr from-violet-500 to-fuchsia-500 p-2 rounded-xl shadow-lg shadow-violet-200 text-white transform rotate-3">
+              <Brain className="w-5 h-5" />
             </div>
-            
-            <!-- Estado Gamificación Global -->
-            <div class="flex items-center gap-3 text-sm">
-                <div class="flex flex-col items-end">
-                    <span class="font-bold text-brand-600">Nivel <span id="user-level">2</span></span>
-                    <div class="w-24 h-2 bg-gray-200 rounded-full mt-1 overflow-hidden">
-                        <div id="xp-bar" class="h-full bg-brand-500 progress-bar" style="width: 45%"></div>
+            <div>
+              <h1 className="font-bold text-lg leading-tight text-slate-800 tracking-tight">Mi Cerebro Externo</h1>
+              <p className="text-[11px] text-slate-500 font-medium uppercase tracking-wider">Nivel {level} • Maestro del Caos</p>
+            </div>
+          </div>
+
+          <button 
+            onClick={() => setShowRewardShop(true)}
+            className="group relative flex items-center gap-2 bg-white/50 border border-slate-100 hover:border-amber-200 hover:bg-amber-50/50 px-4 py-1.5 rounded-full transition-all duration-300 hover:shadow-lg hover:shadow-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            aria-label={`Tienda de recompensas. Tienes ${points} puntos.`}
+          >
+            <Trophy className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
+            <span id="points-badge" className="font-bold text-slate-700 group-hover:text-amber-700 transition-all">
+              {points} pts
+            </span>
+          </button>
+        </div>
+      </header>
+
+      {/* Navegación Flotante */}
+      <nav className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 bg-white/90 backdrop-blur-2xl border border-white/50 shadow-[0_8px_30px_rgba(0,0,0,0.12)] rounded-full p-1.5 flex gap-1 md:gap-2 max-w-[90vw] overflow-x-auto no-scrollbar" role="navigation">
+        <NavButton active={activeTab === 'brain'} onClick={() => setActiveTab('brain')} icon={<Brain />} label="Organizador" color="violet" />
+        <NavButton active={activeTab === 'research'} onClick={() => setActiveTab('research')} icon={<BookOpen />} label="Investigación" color="blue" />
+        <NavButton active={activeTab === 'design'} onClick={() => setActiveTab('design')} icon={<Palette />} label="Diseño" color="fuchsia" />
+        <NavButton active={activeTab === 'care'} onClick={() => setActiveTab('care')} icon={<Heart />} label="Autocuidado" color="rose" />
+      </nav>
+
+      {/* Contenido Principal */}
+      <main className="max-w-5xl mx-auto p-4 md:py-8 relative animate-in fade-in slide-in-from-bottom-4 duration-700">
+        {showRewardShop && (
+          <RewardShopModal points={points} setPoints={setPoints} close={() => setShowRewardShop(false)} showToast={showToast} />
+        )}
+
+        {/* Modal de Confirmación Personalizado */}
+        {confirmModal.show && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setConfirmModal({ ...confirmModal, show: false })}>
+                <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full border border-white/50 transform scale-100 transition-all" onClick={e => e.stopPropagation()}>
+                    <div className="flex flex-col items-center text-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                            <AlertTriangle size={24} />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-800">¿Estás seguro?</h3>
+                        <p className="text-sm text-slate-600">{confirmModal.message}</p>
+                        <div className="flex gap-3 w-full mt-2">
+                            <button 
+                                onClick={() => setConfirmModal({ ...confirmModal, show: false })}
+                                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={confirmModal.onConfirm}
+                                className="flex-1 py-2.5 rounded-xl bg-slate-900 text-white font-semibold hover:bg-black transition-colors shadow-lg"
+                            >
+                                Confirmar
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <!-- Puntos compartidos -->
-                <div class="bg-amber-100 text-amber-700 px-2 py-1 rounded-md font-bold flex items-center gap-1">
-                    <i class="ph ph-coin"></i> <span id="global-points">120</span>
+            </div>
+        )}
+
+        <div role="region" aria-live="polite">
+          {activeTab === 'brain' && <BrainOrganizer addPoints={addPoints} showToast={showToast} requestConfirm={requestConfirm} />}
+          {activeTab === 'research' && <ResearchHub addPoints={addPoints} showToast={showToast} />}
+          {activeTab === 'design' && <DesignChecklist addPoints={addPoints} showToast={showToast} />}
+          {activeTab === 'care' && <SelfCareTracker addPoints={addPoints} showToast={showToast} />}
+        </div>
+
+        {/* Notificación Toast Accesible */}
+        {notification && (
+            <div 
+                className={`fixed bottom-28 md:bottom-10 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-300 border ${notification.type === 'error' ? 'bg-rose-900 text-white border-rose-800' : 'bg-slate-900/90 backdrop-blur-md text-white border-white/10'}`}
+                role={notification.type === 'error' ? 'alert' : 'status'}
+            >
+                {notification.type === 'success' ? <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" /> : <Bell className="w-5 h-5 text-white" />}
+                <span className="font-medium text-sm tracking-wide">{notification.message}</span>
+            </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+// --- COMPONENTES AUXILIARES ---
+
+function NavButton({ active, onClick, icon, label, color }) {
+  const colors = {
+    violet: active ? 'bg-violet-100 text-violet-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50',
+    blue: active ? 'bg-blue-100 text-blue-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50',
+    fuchsia: active ? 'bg-fuchsia-100 text-fuchsia-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50',
+    rose: active ? 'bg-rose-100 text-rose-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50',
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`relative flex items-center gap-2 px-4 py-2.5 rounded-full transition-all duration-300 font-medium text-sm whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-violet-300 ${colors[color]} ${active ? 'shadow-sm ring-1 ring-white/50' : ''}`}
+      aria-label={label}
+      aria-current={active ? 'page' : undefined}
+    >
+      {React.cloneElement(icon, { size: 18, className: `transition-transform duration-300 ${active ? 'scale-110' : ''}` })}
+      {active && <span className="animate-in fade-in slide-in-from-left-2 duration-300 hidden md:inline">{label}</span>}
+    </button>
+  );
+}
+
+// --- ORGANIZADOR ---
+function BrainOrganizer({ addPoints, showToast, requestConfirm }) {
+  const [inputValue, setInputValue] = useState('');
+  const [tasks, setTasks] = useLocalStorage('tasks', []);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const MicroCommitment = ({ label, icon, action, colorClass }) => (
+    <button onClick={action} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all border ${colorClass} active:scale-95 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-300`}>
+      {icon} {label}
+    </button>
+  );
+
+  const handleMicroCommitment = (msg) => {
+    showToast(msg, 'success');
+    addPoints(2);
+  };
+
+  const classifyTask = (text) => {
+    const lower = text.toLowerCase();
+    if (lower.includes('miguel')) return 'Pendientes Miguel';
+    if (lower.includes('juan')) return 'Pendientes Juan';
+    if (lower.includes('eimy') || lower.includes('amy')) return 'Pendientes Eimy';
+    if (lower.includes('emily')) return 'Pendientes Emily';
+    if (lower.includes('universidad') || lower.includes('clase') || lower.includes('tesis')) return 'Universidad';
+    if (lower.includes('tiki') || lower.includes('diseño') || lower.includes('arte')) return 'Pendientes Creativos';
+    if (lower.includes('casa') || lower.includes('mí') || lower.includes('yo')) return 'Pendientes Personales';
+    return 'General'; 
+  };
+
+  const handleBrainDump = () => {
+    if (!inputValue.trim()) return;
+    setIsProcessing(true);
+    setTimeout(() => {
+      const lines = inputValue.split('\n').filter(l => l.trim() !== '');
+      const newTasks = [];
+      
+      lines.forEach(line => {
+        if (line.trim().startsWith('-') && newTasks.length > 0) {
+          const parent = newTasks[newTasks.length - 1];
+          parent.subtasks.push({ id: generateId(), title: line.replace('-', '').trim(), completed: false });
+        } else {
+          newTasks.push({ 
+            id: generateId(), 
+            title: line.trim(), 
+            category: classifyTask(line.trim()), 
+            completed: false, 
+            points: 5, 
+            priority: 'medium', 
+            implementationIntention: '',
+            subtasks: [],
+            cbt: { thought: '', reframe: '' } // CBT inicializado
+          });
+        }
+      });
+      setTasks(prev => [...prev, ...newTasks]);
+      setInputValue('');
+      setIsProcessing(false);
+      addPoints(newTasks.length); 
+      showToast(`¡${newTasks.length} pendientes organizados!`, 'success');
+    }, 600);
+  };
+
+  const resetDay = () => {
+    requestConfirm("Esto eliminará todas las tareas completadas del día.", () => {
+        setTasks(prev => prev.filter(t => !t.completed));
+        addPoints(5); 
+        showToast("¡Día reiniciado!", 'success');
+    });
+  };
+
+  // ✅ CORRECCIÓN 1: Lógica separada de addPoints
+  const toggleTask = (taskId) => {
+    let delta = 0;
+    setTasks(prev => prev.map(t => {
+        if (t.id !== taskId) return t;
+        const willComplete = !t.completed;
+        delta = willComplete ? t.points : -t.points;
+        return { ...t, completed: willComplete };
+    }));
+    if (delta !== 0) addPoints(delta);
+  };
+
+  const deleteTask = (taskId) => setTasks(prev => prev.filter(t => t.id !== taskId));
+  
+  const updateTask = (taskId, updates) => setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
+
+  // ✅ CORRECCIÓN: Lógica separada de addPoints para subtareas
+  const toggleSubtask = (taskId, subId) => {
+    let delta = 0;
+    setTasks(prev => prev.map(t => {
+      if (t.id === taskId) {
+        const updatedSubtasks = t.subtasks.map(s => {
+          if (s.id === subId) {
+            const newState = !s.completed;
+            delta = newState ? 1 : -1;
+            return { ...s, completed: newState };
+          }
+          return s;
+        });
+        return { ...t, subtasks: updatedSubtasks };
+      }
+      return t;
+    }));
+    if (delta !== 0) addPoints(delta);
+  };
+
+  // MEJORA B: Progreso real incluyendo subtareas
+  const calculateProgress = () => {
+    if (tasks.length === 0) return 0;
+    let totalItems = 0;
+    let completedItems = 0;
+
+    tasks.forEach(t => {
+        totalItems++; // La tarea principal cuenta como 1
+        if (t.completed) completedItems++;
+        
+        if (t.subtasks && t.subtasks.length > 0) {
+            totalItems += t.subtasks.length;
+            completedItems += t.subtasks.filter(s => s.completed).length;
+        }
+    });
+
+    return totalItems === 0 ? 0 : Math.round((completedItems / totalItems) * 100);
+  };
+  
+  const progressPercent = calculateProgress();
+
+  // MEJORA A: Ordenamiento por prioridad
+  const PRIORITY_RANK = { 'high': 0, 'medium': 1, 'low': 2 };
+
+  return (
+    <div className="space-y-8">
+      {/* Brain Dump Card */}
+      <div className="bg-white p-6 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-white/60 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
+        
+        <label className="relative block text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <div className="bg-indigo-100 p-2 rounded-xl text-indigo-600"><Sparkles className="w-5 h-5" /></div>
+          Vaciado Mental
+        </label>
+        
+        <div className="relative flex flex-wrap gap-2 mb-4">
+          <MicroCommitment icon={<Clock size={14}/>} label="2 min" action={() => handleMicroCommitment("¡Cronómetro iniciado!")} colorClass="bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100" />
+          <MicroCommitment icon={<Play size={14}/>} label="Primer paso" action={() => handleMicroCommitment("¡Acción!")} colorClass="bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100" />
+          <MicroCommitment icon={<Zap size={14}/>} label="Sin pensar" action={() => handleMicroCommitment("¡Solo hazlo!")} colorClass="bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100" />
+        </div>
+
+        <textarea
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder="Escribe todo aquí... el sistema lo ordenará por ti.&#10;Ej: Miguel comprar pan&#10;- llevar bolsa"
+          className="relative w-full p-5 rounded-2xl bg-slate-50/50 border-2 border-slate-100 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50/50 outline-none transition-all h-40 resize-none text-slate-600 placeholder:text-slate-400 font-medium text-base leading-relaxed"
+        />
+        
+        <button
+            onClick={handleBrainDump}
+            disabled={!inputValue.trim() || isProcessing}
+            className="mt-4 w-full bg-slate-900 text-white font-bold py-4 px-6 rounded-2xl hover:bg-black active:scale-[0.98] transition-all disabled:opacity-50 flex justify-center items-center gap-2 shadow-lg shadow-slate-300"
+        >
+            {isProcessing ? 'Procesando...' : 'Organizar mi caos ✨'}
+        </button>
+      </div>
+
+      {/* Progress Bar */}
+      {tasks.length > 0 && (
+          <div className="bg-white/60 backdrop-blur-sm px-6 py-4 rounded-[2rem] border border-white/50 shadow-sm flex flex-col gap-3">
+              <div className="flex justify-between items-center text-sm">
+                  <span className="font-bold text-slate-600">Progreso Diario</span>
+                  <span className="font-mono text-indigo-600 font-bold bg-indigo-50 px-3 py-1 rounded-lg text-xs">{progressPercent}%</span>
+              </div>
+              <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden p-[2px]">
+                  <div 
+                      className="bg-gradient-to-r from-indigo-400 via-purple-400 to-fuchsia-400 h-full rounded-full transition-all duration-1000 ease-out shadow-sm" 
+                      style={{ width: `${progressPercent}%` }}
+                  ></div>
+              </div>
+          </div>
+      )}
+
+      {/* Tasks Grid */}
+      <div className="flex justify-between items-center px-4">
+        <h2 className="font-bold text-slate-800 text-xl">Tus Pendientes</h2>
+        {tasks.some(t => t.completed) && (
+            <button onClick={resetDay} className="text-xs font-semibold text-rose-500 hover:bg-rose-50 px-3 py-2 rounded-xl transition-colors flex items-center gap-2">
+                <Trash2 size={14}/> Limpiar
+            </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-6">
+        {Object.entries(CATEGORIES_CONFIG).map(([catName, config]) => {
+          // Filtrar y Ordenar por Prioridad
+          const catTasks = tasks
+            .filter(t => t.category === catName)
+            .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]);
+            
+          if (catTasks.length === 0) return null;
+
+          return (
+            <div key={catName} className={`rounded-[2rem] border ${config.border} ${config.bg} backdrop-blur-sm overflow-hidden transition-all hover:shadow-md`}>
+                <div className="p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`p-2 rounded-xl bg-white shadow-sm ${config.iconColor}`}>{config.icon}</div>
+                    <h3 className={`font-bold text-base ${config.text}`}>{catName}</h3>
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg ml-auto bg-white/50 border border-white/50 ${config.text}`}>
+                        {catTasks.filter(t => !t.completed).length}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {catTasks.map(task => (
+                        <TaskItem 
+                            key={task.id} 
+                            task={task} 
+                            config={config} 
+                            toggleTask={toggleTask} 
+                            deleteTask={deleteTask}
+                            updateTask={updateTask}
+                            toggleSubtask={toggleSubtask}
+                        />
+                    ))}
+                  </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// --- TASK ITEM MEJORADO (PERSISTENCIA CBT + ENTER/ESC) ---
+function TaskItem({ task, config, toggleTask, deleteTask, updateTask, toggleSubtask }) {
+    const [isEditing, setIsEditing] = useState(false);
+    const [showCBT, setShowCBT] = useState(false);
+    const [editText, setEditText] = useState(task.title);
+
+    const handleSave = () => {
+        updateTask(task.id, { title: editText });
+        setIsEditing(false);
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') handleSave();
+        if (e.key === 'Escape') {
+            setEditText(task.title);
+            setIsEditing(false);
+        }
+    };
+
+    const priorities = [
+        { id: 'high', label: 'Alta', color: 'bg-rose-500' },
+        { id: 'medium', label: 'Media', color: 'bg-amber-400' },
+        { id: 'low', label: 'Baja', color: 'bg-slate-300' }
+    ];
+
+    return (
+        <div className={`group bg-white/90 rounded-2xl border border-white/50 p-4 transition-all duration-200 ${task.completed ? 'opacity-50' : 'hover:scale-[1.01] hover:shadow-sm'}`}>
+            <div className="flex items-start gap-3">
+                <button 
+                    onClick={() => toggleTask(task.id)} 
+                    className={`mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-emerald-300 ${task.completed ? 'bg-emerald-400 border-emerald-400' : 'border-slate-200 bg-white hover:border-emerald-300'}`}
+                >
+                    {task.completed && <CheckSquare className="w-3.5 h-3.5 text-white" />}
+                </button>
+                
+                <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start mb-1">
+                        {isEditing ? (
+                            <div className="flex gap-2 w-full">
+                                <input 
+                                    className="flex-1 text-sm border-b border-indigo-300 focus:outline-none bg-transparent"
+                                    value={editText}
+                                    onChange={(e) => setEditText(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    autoFocus
+                                />
+                                <button onClick={handleSave} className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">Ok</button>
+                            </div>
+                        ) : (
+                            <p 
+                                onDoubleClick={() => setIsEditing(true)}
+                                className={`text-sm font-medium leading-relaxed break-words pr-2 cursor-pointer ${task.completed ? 'line-through text-slate-400' : 'text-slate-700'}`}
+                            >
+                                {task.title}
+                            </p>
+                        )}
+                        
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => setIsEditing(!isEditing)} className="p-1 text-slate-400 hover:text-indigo-500 rounded hover:bg-indigo-50">
+                                <Edit2 size={12}/>
+                            </button>
+                            <button onClick={() => deleteTask(task.id)} className="p-1 text-slate-400 hover:text-rose-500 rounded hover:bg-rose-50">
+                                <Trash2 size={12}/>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="flex gap-1 bg-slate-100 p-0.5 rounded-full">
+                             {priorities.map(p => (
+                                <button 
+                                    key={p.id}
+                                    onClick={() => updateTask(task.id, { priority: p.id })}
+                                    className={`w-2.5 h-2.5 rounded-full transition-all ${p.color} ${task.priority === p.id ? 'ring-2 ring-offset-1 ring-slate-300 scale-110' : 'opacity-40 hover:opacity-100'}`}
+                                    title={`Prioridad ${p.label}`}
+                                />
+                             ))}
+                        </div>
+                        <select 
+                            className="text-[10px] bg-slate-50 border-0 rounded text-slate-500 py-0.5 pl-1 pr-0 focus:ring-0 cursor-pointer hover:bg-slate-100 max-w-[100px] truncate"
+                            value={task.category}
+                            onChange={(e) => updateTask(task.id, { category: e.target.value })}
+                        >
+                            {Object.keys(CATEGORIES_CONFIG).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                        </select>
+                    </div>
+
+                    <div className="mb-2">
+                         <input 
+                            className="w-full text-[11px] text-slate-500 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-300 focus:outline-none placeholder:text-slate-300 placeholder:italic transition-colors"
+                            placeholder="Si pasa X... entonces haré Y"
+                            value={task.implementationIntention || ''}
+                            onChange={(e) => updateTask(task.id, { implementationIntention: e.target.value })}
+                         />
+                    </div>
+
+                    {task.subtasks?.length > 0 && (
+                        <div className="pl-3 border-l-2 border-slate-100 space-y-1 mt-2">
+                            {task.subtasks.map(sub => (
+                                <div key={sub.id} className="text-xs text-slate-600 flex items-center gap-2 cursor-pointer group/sub" onClick={() => toggleSubtask(task.id, sub.id)}>
+                                    <div className={`w-3 h-3 rounded flex items-center justify-center border transition-colors ${sub.completed ? 'bg-indigo-400 border-indigo-400' : 'border-slate-300 bg-white group-hover/sub:border-indigo-300'}`}>
+                                        {sub.completed && <CheckSquare size={8} className="text-white"/>}
+                                    </div>
+                                    <span className={sub.completed ? 'line-through opacity-60' : ''}>{sub.title}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="mt-2 flex justify-end">
+                        <button 
+                            onClick={() => setShowCBT(!showCBT)}
+                            className={`text-[10px] flex items-center gap-1 px-2 py-1 rounded-full border transition-colors ${showCBT ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-400 border-slate-100 hover:bg-indigo-50 hover:text-indigo-500'}`}
+                        >
+                            <LifeBuoy size={10} /> {showCBT ? 'Cerrar Ayuda' : '¿Bloqueado?'}
+                        </button>
+                    </div>
+
+                    {/* ✅ CORRECCIÓN 3: Panel CBT Persistente */}
+                    {showCBT && (
+                        <div className="mt-2 p-3 bg-amber-50/50 rounded-xl border border-amber-100 text-xs space-y-2 animate-in slide-in-from-top-2">
+                            <p className="font-bold text-amber-800">Desbloqueo Rápido:</p>
+                            <div className="space-y-1">
+                                <p>1. ¿Qué pensamiento te frena?</p>
+                                <input 
+                                    className="w-full bg-white/50 p-2 rounded border border-amber-200 focus:outline-none focus:bg-white" 
+                                    placeholder="Ej: Es demasiado difícil..."
+                                    value={task.cbt?.thought || ''}
+                                    onChange={(e) => updateTask(task.id, { cbt: { ...(task.cbt || {}), thought: e.target.value } })}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <p>2. ¿Cuál es una versión más útil?</p>
+                                <input 
+                                    className="w-full bg-white/50 p-2 rounded border border-amber-200 focus:outline-none focus:bg-white" 
+                                    placeholder="Ej: Solo haré 5 minutos..."
+                                    value={task.cbt?.reframe || ''}
+                                    onChange={(e) => updateTask(task.id, { cbt: { ...(task.cbt || {}), reframe: e.target.value } })}
+                                />
+                            </div>
+                            <button onClick={() => setShowCBT(false)} className="w-full bg-amber-200 text-amber-900 py-1.5 rounded font-bold hover:bg-amber-300 mt-1">
+                                ¡Listo, a trabajar!
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
-    </header>
+    );
+}
 
-    <!-- CONTENEDOR PRINCIPAL -->
-    <main id="app-content" class="max-w-md mx-auto p-4 min-h-screen">
-        
-        <!-- ========================================== -->
-        <!-- PÁGINA 1: INICIO / DASHBOARD -->
-        <!-- ========================================== -->
-        <section id="home" class="page-section">
-            <div class="bg-gradient-to-r from-brand-500 to-brand-600 rounded-2xl p-6 text-white mb-6 shadow-lg">
-                <h2 class="text-2xl font-bold mb-1">¡Hola, Viajero!</h2>
-                <p class="text-brand-100 mb-4">Día 4 de tu transformación.</p>
-                <div class="flex items-center gap-2 bg-white/20 backdrop-blur-sm p-3 rounded-xl inline-flex">
-                    <i class="ph-fill ph-fire text-orange-300 text-xl"></i>
-                    <span class="font-bold">Racha: 3 días</span>
-                </div>
+// --- TIENDA DE RECOMPENSAS (CON MODAL DE CONFIRMACIÓN) ---
+function RewardShopModal({ points, setPoints, close, showToast }) {
+  const [rewards, setRewards] = useLocalStorage('customRewards', DEFAULT_REWARDS);
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemCost, setNewItemCost] = useState('');
+
+  const buy = (cost, rewardName) => {
+    if (points >= cost) {
+      setPoints(p => p - cost);
+      showToast(`¡Canjeado "${rewardName}"! Disfrútalo.`);
+    } else {
+      showToast(`Te faltan ${cost - points} puntos.`, 'error');
+    }
+  };
+
+  const addReward = () => {
+    if (!newItemName.trim() || !newItemCost) return;
+    const cost = parseInt(newItemCost);
+    if (isNaN(cost) || cost <= 0) return;
+    setRewards(prev => [...prev, { id: generateId(), name: newItemName, cost, icon: "✨" }]);
+    setNewItemName('');
+    setNewItemCost('');
+    showToast('Recompensa agregada', 'success');
+  };
+
+  const deleteReward = (id) => setRewards(prev => prev.filter(r => r.id !== id));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-md animate-in fade-in duration-300" onClick={close}>
+      <div className="bg-white/95 backdrop-blur-xl rounded-[2.5rem] shadow-2xl border border-white/50 p-0 w-full max-w-md relative flex flex-col max-h-[85vh] overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
+        <div className="p-6 pb-2 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+             <div className="bg-amber-100 p-2 rounded-xl text-amber-600"><ShoppingBag size={20} /></div>
+             <h2 className="text-xl font-bold text-slate-800">Tienda</h2>
+          </div>
+          <button onClick={close} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors" aria-label="Cerrar tienda">
+            <X size={16}/>
+          </button>
+        </div>
+        <div className="px-6 py-4">
+            <div className="bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-3xl p-6 text-center text-white shadow-lg shadow-violet-200">
+                <span className="text-violet-100 font-bold text-xs uppercase tracking-widest opacity-80">Saldo disponible</span>
+                <div className="text-5xl font-black mt-2 tracking-tighter drop-shadow-sm">{points} <span className="text-lg font-medium opacity-70">pts</span></div>
             </div>
-
-            <h3 class="font-bold text-gray-700 mb-3 text-lg">Reto Diario</h3>
-            <div class="bg-white rounded-xl p-5 border border-gray-100 shadow-sm mb-6 relative overflow-hidden group">
-                <div class="absolute right-0 top-0 bg-accent-500 text-white text-xs font-bold px-2 py-1 rounded-bl-lg">+50 XP</div>
-                <div class="flex gap-4">
-                    <div class="bg-blue-50 text-blue-500 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
-                        <i class="ph ph-waves text-2xl"></i>
-                    </div>
-                    <div>
-                        <h4 class="font-bold text-lg">Respiración 4-7-8</h4>
-                        <p class="text-gray-500 text-sm mb-3">Reduce la ansiedad en 2 minutos.</p>
-                        <button onclick="completeChallenge(this, 50)" class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium active:scale-95 transition-transform w-full">Completar ahora</button>
-                    </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-2 custom-scrollbar">
+            <div className="space-y-3">
+            {rewards.map(r => (
+                <div key={r.id} className="group relative flex items-center gap-3">
+                    <button 
+                    onClick={() => buy(r.cost, r.name)}
+                    disabled={points < r.cost}
+                    className={`flex-1 flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-200 ${
+                        points >= r.cost 
+                        ? 'border-transparent bg-white shadow-sm hover:border-violet-200 hover:shadow-md cursor-pointer text-slate-700 active:scale-[0.98]' 
+                        : 'border-transparent bg-slate-50 opacity-60 cursor-not-allowed text-slate-400 grayscale'
+                    }`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <span className="text-2xl filter drop-shadow-sm">{r.icon}</span>
+                            <span className="font-semibold text-sm">{r.name}</span>
+                        </div>
+                        <span className={`font-bold text-xs px-2.5 py-1 rounded-lg ${points >= r.cost ? 'bg-violet-50 text-violet-700' : 'bg-slate-200 text-slate-500'}`}>
+                            {r.cost} pts
+                        </span>
+                    </button>
+                    <button 
+                        onClick={() => deleteReward(r.id)} 
+                        className="absolute -right-2 top-1/2 -translate-y-1/2 p-2 bg-white shadow-md text-rose-500 rounded-full opacity-0 group-hover:opacity-100 group-hover:right-2 transition-all duration-300"
+                        aria-label="Eliminar recompensa"
+                    >
+                        <Trash2 size={14}/>
+                    </button>
                 </div>
+            ))}
             </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <button onclick="navTo('store')" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-left hover:border-pink-300 transition-colors relative overflow-hidden">
-                    <div class="absolute right-0 top-0 bg-pink-100 text-pink-600 px-2 py-1 text-[10px] font-bold rounded-bl-lg">NUEVO</div>
-                    <i class="ph-duotone ph-gift text-3xl text-pink-500 mb-2"></i>
-                    <div class="font-bold text-gray-800">Mi Tienda</div>
-                    <div class="text-xs text-gray-500">Canjear logros</div>
+        </div>
+        <div className="p-4 bg-slate-50/80 border-t border-slate-100">
+            <div className="flex gap-2">
+                <input 
+                    type="text" 
+                    value={newItemName}
+                    onChange={(e) => setNewItemName(e.target.value)}
+                    placeholder="Nueva recompensa..."
+                    className="flex-1 px-4 py-3 bg-white border-0 rounded-2xl text-sm shadow-sm focus:ring-2 focus:ring-violet-400 outline-none"
+                />
+                <input 
+                    type="number" 
+                    value={newItemCost}
+                    onChange={(e) => setNewItemCost(e.target.value)}
+                    placeholder="Pts"
+                    className="w-20 px-3 py-3 bg-white border-0 rounded-2xl text-sm shadow-sm focus:ring-2 focus:ring-violet-400 outline-none text-center"
+                />
+                <button 
+                    onClick={addReward}
+                    className="bg-slate-800 text-white w-12 flex items-center justify-center rounded-2xl hover:bg-black transition-colors shadow-lg active:scale-90"
+                    aria-label="Agregar"
+                >
+                    <PlusCircle size={20}/>
                 </button>
-                <button onclick="navTo('misiones')" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-left hover:border-brand-300 transition-colors">
-                    <i class="ph-duotone ph-map-trifold text-3xl text-emerald-500 mb-2"></i>
-                    <div class="font-bold text-gray-800">Ruta 60 Días</div>
-                    <div class="text-xs text-gray-500">Ver mapa</div>
-                </button>
             </div>
-        </section>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-        <!-- ========================================== -->
-        <!-- PÁGINA 2: RETOS -->
-        <!-- ========================================== -->
-        <section id="retos" class="page-section hidden">
-            <h2 class="text-2xl font-bold mb-4">Explorar Retos</h2>
-            <div class="flex gap-2 overflow-x-auto hide-scroll mb-6 pb-2">
-                <button class="px-4 py-2 bg-gray-800 text-white rounded-full text-sm font-medium whitespace-nowrap">Todos</button>
-                <button class="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-full text-sm font-medium whitespace-nowrap">Ansiedad</button>
-                <button class="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-full text-sm font-medium whitespace-nowrap">Autoestima</button>
-            </div>
-            <div class="space-y-4">
-                <article class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded">Rápido (2 min)</span>
-                        <span class="text-amber-500 font-bold text-sm flex items-center gap-1"><i class="ph-fill ph-coin"></i> 20</span>
-                    </div>
-                    <h3 class="font-bold text-lg text-gray-800">Escaneo Corporal</h3>
-                    <p class="text-gray-500 text-sm mb-4">Cierra los ojos y siente cada parte de tu cuerpo.</p>
-                    <button onclick="completeChallenge(this, 20)" class="w-full py-2 border-2 border-brand-500 text-brand-600 font-bold rounded-lg hover:bg-brand-50 transition-colors">Iniciar Reto</button>
-                </article>
-            </div>
-        </section>
+// --- CHECKLIST DISEÑO ---
+function DesignChecklist({addPoints, showToast}) {
+  const [items, setItems] = useLocalStorage('designItems', [
+    { id: '1', text: 'Modo de Color (CMYK/RGB)', checked: false },
+    { id: '2', text: 'Ortografía y Gramática', checked: false },
+    { id: '3', text: 'Resolución (300dpi)', checked: false },
+    { id: '4', text: 'Sangrado y Márgenes', checked: false },
+    { id: '5', text: 'Fuentes a curvas', checked: false },
+    { id: '6', text: 'Alineación', checked: false },
+    { id: '7', text: 'Identidad Corporativa', checked: false },
+    { id: '8', text: 'Enlaces funcionales', checked: false },
+  ]);
 
-        <!-- ========================================== -->
-        <!-- PÁGINA 3: MISIONES (RUTA 60 DÍAS) -->
-        <!-- ========================================== -->
-        <section id="misiones" class="page-section hidden">
-            <div class="mb-6">
-                <h2 class="text-2xl font-bold mb-1">Tu Viaje de 60 Días</h2>
-                <p class="text-gray-500 text-sm">Desbloquea cada día completando retos.</p>
+  const toggle = (id) => {
+    let delta = 0;
+    setItems(prev => prev.map(i => {
+        if(i.id === id) {
+            const newState = !i.checked;
+            delta = newState ? 5 : -5;
+            return { ...i, checked: newState };
+        }
+        return i;
+    }));
+    if(delta !== 0) addPoints(delta);
+  };
+
+  const progress = Math.round((items.filter(i => i.checked).length / items.length) * 100);
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white p-8 rounded-[2.5rem] shadow-xl shadow-violet-200 relative overflow-hidden">
+        <div className="relative z-10 flex justify-between items-end">
+            <div>
+                <h2 className="text-3xl font-bold">QA Diseño</h2>
+                <p className="text-violet-100 opacity-80">Checklist de calidad</p>
+            </div>
+            <div className="text-5xl font-black">{progress}%</div>
+        </div>
+        <div className="mt-6 h-2 bg-black/20 rounded-full overflow-hidden backdrop-blur-sm relative z-10">
+            <div className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)] transition-all duration-700" style={{ width: `${progress}%` }}></div>
+        </div>
+        <Palette className="absolute -right-8 -top-8 text-white opacity-10 w-64 h-64 rotate-12" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-3">
+        {items.map(item => (
+          <button 
+            key={item.id} 
+            onClick={() => toggle(item.id)}
+            className={`w-full text-left p-5 rounded-2xl flex items-center gap-4 transition-all duration-300 group ${item.checked ? 'bg-slate-50 border border-transparent' : 'bg-white border border-slate-100 hover:border-violet-200 hover:shadow-sm'}`}
+            aria-pressed={item.checked}
+          >
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 ${item.checked ? 'bg-emerald-500 text-white scale-110 shadow-lg shadow-emerald-200' : 'bg-slate-100 text-slate-300 group-hover:bg-violet-100 group-hover:text-violet-400'}`}>
+                <CheckSquare size={16} />
+            </div>
+            <span className={`text-base font-medium transition-colors ${item.checked ? 'text-slate-500 line-through' : 'text-slate-700'}`}>{item.text}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- INVESTIGACIÓN ---
+function ResearchHub({ addPoints, showToast }) {
+    const [input, setInput] = useState('');
+    const [researchItems, setResearchItems] = useLocalStorage('researchItems', []);
+
+    const processResearch = () => {
+        if (!input.trim()) return;
+        const classify = (t) => {
+            const l = t.toLowerCase();
+            if(l.includes('intro')) return 'Introducción';
+            if(l.includes('marco')) return 'Marco Teórico';
+            if(l.includes('justifi')) return 'Justificación';
+            if(l.includes('cita')) return 'Citas';
+            return 'Bandeja de Entrada';
+        };
+        const lines = input.split('\n').filter(l => l.trim() !== '');
+        setResearchItems(prev => [...prev, ...lines.map(l => ({ id: generateId(), content: l, type: classify(l), isLink: l.includes('http') }))]);
+        setInput('');
+        addPoints(lines.length * 2);
+        showToast("Investigación guardada", 'success');
+    };
+
+    const getSectionStyle = (color) => {
+        const styles = {
+            stone: 'bg-slate-50 border-slate-100 text-slate-700',
+            blue: 'bg-blue-50 border-blue-100 text-blue-700',
+            violet: 'bg-violet-50 border-violet-100 text-violet-700',
+            emerald: 'bg-emerald-50 border-emerald-100 text-emerald-700',
+            amber: 'bg-amber-50 border-amber-100 text-amber-700',
+            rose: 'bg-rose-50 border-rose-100 text-rose-700',
+        };
+        return styles[color];
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+                <label className="flex items-center gap-3 text-lg font-bold text-slate-800 mb-4">
+                    <div className="bg-blue-100 p-2 rounded-xl text-blue-600"><Search size={20}/></div>
+                    Vaciado de Investigación
+                </label>
+                <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Pega links o ideas aquí..."
+                    className="w-full p-4 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-blue-300 focus:bg-white outline-none h-32 resize-none text-slate-700 placeholder:text-slate-400"
+                />
+                <button onClick={processResearch} className="mt-4 w-full bg-slate-800 text-white font-bold py-3.5 rounded-xl hover:bg-slate-900 transition-all shadow-lg">Guardar y Clasificar</button>
             </div>
 
-            <!-- Contenedor generado por JS -->
-            <div id="missions-container" class="relative pl-4 space-y-0">
-                <!-- Línea conectora de fondo -->
-                <div class="absolute left-[27px] top-4 bottom-4 w-1 bg-gray-200 -z-10"></div>
-            </div>
-        </section>
-
-        <!-- ========================================== -->
-        <!-- PÁGINA 4: DIARIO DE LOGROS (LA TIENDA INTEGRADA) -->
-        <!-- ========================================== -->
-        <section id="store" class="page-section hidden">
-            <!-- Header Decorativo Estilo React Code -->
-            <div class="bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 p-6 rounded-2xl shadow-lg mb-6 text-white relative overflow-hidden">
-                <div class="animate-float relative z-10">
-                    <h1 class="text-2xl font-black tracking-tight flex items-center gap-2 drop-shadow-md">
-                        <i class="ph-fill ph-sparkle text-yellow-200"></i>
-                        Mi Diario de Logros
-                    </h1>
-                    <p class="text-pink-100 text-sm mt-1 font-medium opacity-90">Transforma tareas en premios ✨</p>
-                </div>
-                <div class="absolute right-4 top-4 bg-white/20 backdrop-blur-md rounded-xl p-2 border border-white/30 shadow-xl">
-                    <span class="text-[10px] uppercase tracking-widest text-pink-100 font-bold block text-center">Puntos</span>
-                    <div class="text-2xl font-black text-white flex items-center gap-1 justify-center">
-                        <i class="ph-fill ph-heart text-pink-200"></i>
-                        <span id="store-points-display">120</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- SECCIÓN TAREAS -->
-                <div class="bg-white rounded-2xl shadow-sm border-2 border-pink-100 overflow-hidden">
-                    <div class="bg-pink-50/50 p-4 border-b border-pink-100 flex justify-between items-center">
-                        <h2 class="font-bold text-purple-900 flex items-center gap-2">
-                            <i class="ph-bold ph-list-plus text-pink-500"></i> Misiones
-                        </h2>
-                        <div class="flex gap-2">
-                            <button onclick="resetDailyTasks()" class="p-2 text-purple-400 hover:bg-purple-50 rounded-full"><i class="ph-bold ph-arrow-counter-clockwise"></i></button>
-                            <button onclick="clearAllTasks()" class="p-2 text-pink-300 hover:text-red-400 hover:bg-red-50 rounded-full"><i class="ph-bold ph-trash"></i></button>
-                        </div>
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {RESEARCH_SECTIONS.map(section => {
+                    const items = researchItems.filter(i => i.type === section.id);
+                    if (section.id === 'Bandeja de Entrada' && items.length === 0) return null;
+                    const style = getSectionStyle(section.color);
                     
-                    <div class="p-4">
-                        <!-- Input Masivo -->
-                        <div class="relative mb-4">
-                            <textarea id="bulk-input" class="w-full bg-pink-50/50 border-2 border-pink-100 rounded-xl p-3 text-purple-900 placeholder:text-pink-300 focus:outline-none focus:border-pink-300 text-sm" placeholder="Escribe tareas y presiona enter..."></textarea>
-                            <button onclick="handleBulkAdd()" class="absolute bottom-2 right-2 bg-gradient-to-tr from-pink-500 to-purple-500 text-white p-1.5 rounded-lg shadow-md hover:scale-105 transition-transform">
-                                <i class="ph-bold ph-plus"></i>
-                            </button>
-                        </div>
-
-                        <!-- Lista Tareas -->
-                        <div id="tasks-list" class="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
-                            <!-- JS Renders here -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SECCIÓN RECOMPENSAS -->
-                <div class="bg-white rounded-2xl shadow-sm border-2 border-purple-100 overflow-hidden">
-                    <div class="bg-purple-50/50 p-4 border-b border-purple-100">
-                        <h2 class="font-bold text-purple-900 flex items-center gap-2">
-                            <i class="ph-fill ph-trophy text-purple-500"></i> Premios
-                        </h2>
-                    </div>
-                    
-                    <div class="p-4">
-                        <div id="rewards-list" class="grid grid-cols-1 gap-2 mb-4">
-                            <!-- JS Renders here -->
-                        </div>
-
-                        <!-- Add Reward Form -->
-                        <div class="bg-purple-50 p-3 rounded-xl flex gap-2 items-center">
-                            <input id="new-reward-title" type="text" placeholder="Nuevo premio..." class="flex-1 bg-transparent text-purple-900 placeholder:text-purple-300 outline-none text-sm">
-                            <input id="new-reward-cost" type="number" value="10" class="w-12 text-center bg-white rounded-lg text-purple-700 font-bold text-sm border border-purple-100">
-                            <button onclick="addReward()" class="bg-purple-400 text-white p-2 rounded-lg hover:bg-purple-500"><i class="ph-bold ph-plus"></i></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ========================================== -->
-        <!-- PÁGINA 5: PROGRESO -->
-        <!-- ========================================== -->
-        <section id="progreso" class="page-section hidden">
-            <h2 class="text-2xl font-bold mb-6">Tu Progreso</h2>
-            <div class="grid grid-cols-2 gap-4 mb-8">
-                <div class="bg-white p-4 rounded-xl shadow-sm text-center">
-                    <div class="text-3xl font-bold text-brand-600 mb-1">12</div>
-                    <div class="text-xs text-gray-500 uppercase tracking-wide">Retos Totales</div>
-                </div>
-                <div class="bg-white p-4 rounded-xl shadow-sm text-center">
-                    <div class="text-3xl font-bold text-accent-500 mb-1">5</div>
-                    <div class="text-xs text-gray-500 uppercase tracking-wide">Días seguidos</div>
-                </div>
-            </div>
-            <h3 class="font-bold text-gray-800 mb-4">Insignias</h3>
-            <div class="grid grid-cols-3 gap-3 mb-8">
-                <div class="aspect-square bg-white rounded-xl shadow-sm flex flex-col items-center justify-center p-2 border-2 border-yellow-200">
-                    <i class="ph-fill ph-medal text-4xl text-yellow-400 mb-1"></i>
-                    <span class="text-[10px] font-bold text-center leading-tight">Primeros pasos</span>
-                </div>
-                <div class="aspect-square bg-white rounded-xl shadow-sm flex flex-col items-center justify-center p-2 border-2 border-blue-200">
-                    <i class="ph-fill ph-drop text-4xl text-blue-400 mb-1"></i>
-                    <span class="text-[10px] font-bold text-center leading-tight">Calma Total</span>
-                </div>
-                <div class="aspect-square bg-gray-100 rounded-xl flex flex-col items-center justify-center p-2 opacity-50 grayscale">
-                    <i class="ph-fill ph-trophy text-4xl mb-1"></i>
-                    <span class="text-[10px] font-bold text-center leading-tight">Maestro Zen</span>
-                </div>
-            </div>
-        </section>
-
-        <!-- ========================================== -->
-        <!-- PÁGINA 6: DIARIO (TEXTO) -->
-        <!-- ========================================== -->
-        <section id="diario" class="page-section hidden">
-            <h2 class="text-2xl font-bold mb-4">Check-in Diario</h2>
-            <form id="journalForm" onsubmit="saveEntry(event)" class="space-y-6">
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-                    <label class="block text-sm font-bold text-gray-700 mb-3">¿Cómo te sientes ahora?</label>
-                    <div class="flex justify-between text-3xl">
-                        <label class="cursor-pointer hover:scale-110"><input type="radio" name="mood" value="1" class="hidden">😫</label>
-                        <label class="cursor-pointer hover:scale-110"><input type="radio" name="mood" value="3" class="hidden">😐</label>
-                        <label class="cursor-pointer hover:scale-110"><input type="radio" name="mood" value="5" class="hidden" checked>😁</label>
-                    </div>
-                </div>
-                <textarea class="w-full p-3 bg-gray-50 rounded-lg border border-gray-200 h-32" placeholder="Hoy me sentí..."></textarea>
-                <button type="submit" class="w-full bg-brand-600 text-white py-3 rounded-xl font-bold">Guardar Entrada</button>
-            </form>
-            <div id="save-message" class="hidden mt-4 p-3 bg-green-100 text-green-700 rounded-lg text-center text-sm">¡Entrada guardada! +10 XP</div>
-        </section>
-
-        <div class="h-16"></div>
-    </main>
-
-    <!-- MENU DE NAVEGACIÓN INFERIOR -->
-    <nav class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around py-3 px-2 z-50 text-xs font-medium text-gray-400 safe-area-bottom">
-        <button onclick="navTo('home')" class="nav-btn active flex flex-col items-center gap-1 w-full text-brand-600" data-target="home">
-            <i class="ph-fill ph-house text-2xl"></i><span>Inicio</span>
-        </button>
-        <button onclick="navTo('retos')" class="nav-btn flex flex-col items-center gap-1 w-full hover:text-brand-500" data-target="retos">
-            <i class="ph ph-target text-2xl"></i><span>Retos</span>
-        </button>
-        <!-- Botón destacado central para la Tienda -->
-        <button onclick="navTo('store')" class="nav-btn flex flex-col items-center gap-1 w-full hover:text-pink-500 -mt-6" data-target="store">
-            <div class="bg-gradient-to-tr from-pink-500 to-purple-500 p-3 rounded-full shadow-lg border-4 border-white text-white">
-                <i class="ph-fill ph-trophy text-2xl"></i>
-            </div>
-            <span class="text-purple-600 font-bold mt-1">Tienda</span>
-        </button>
-        <button onclick="navTo('misiones')" class="nav-btn flex flex-col items-center gap-1 w-full hover:text-brand-500" data-target="misiones">
-            <i class="ph ph-map-trifold text-2xl"></i><span>Ruta</span>
-        </button>
-        <button onclick="navTo('progreso')" class="nav-btn flex flex-col items-center gap-1 w-full hover:text-brand-500" data-target="progreso">
-            <i class="ph ph-chart-bar text-2xl"></i><span>Progreso</span>
-        </button>
-    </nav>
-
-    <!-- LÓGICA JAVASCRIPT -->
-    <script>
-        // --- 1. CONFIGURACIÓN GLOBAL ---
-        let globalPoints = 120; // Puntos compartidos entre App y Tienda
-        const maxPointsLevel = 200;
-
-        // --- 2. NAVEGACIÓN ---
-        function navTo(sectionId) {
-            document.querySelectorAll('.page-section').forEach(el => el.classList.add('hidden'));
-            document.getElementById(sectionId).classList.remove('hidden');
-            
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                if(!btn.querySelector('.bg-gradient-to-tr')) { // Ignorar el botón central especial
-                    btn.classList.remove('text-brand-600');
-                    const icon = btn.querySelector('i');
-                    if(icon) {
-                        icon.classList.remove('ph-fill');
-                        icon.classList.add('ph');
-                    }
-                }
-            });
-
-            const activeBtn = document.querySelector(`button[data-target="${sectionId}"]`);
-            if(activeBtn && !activeBtn.querySelector('.bg-gradient-to-tr')) {
-                activeBtn.classList.add('text-brand-600');
-                activeBtn.querySelector('i').classList.remove('ph');
-                activeBtn.querySelector('i').classList.add('ph-fill');
-            }
-            window.scrollTo(0,0);
-        }
-
-        // --- 3. SISTEMA DE GAMIFICACIÓN CORE ---
-        function updateGlobalPoints(amount) {
-            globalPoints += amount;
-            // Actualizar todos los contadores en la UI con verificaciones de seguridad
-            
-            // 1. Contador principal en el header (global-points)
-            const globalPointsEl = document.getElementById('global-points');
-            if (globalPointsEl) globalPointsEl.innerText = globalPoints;
-
-            // 2. Contador antiguo (user-points) - Comprobamos si existe para evitar el error
-            const userPointsEl = document.getElementById('user-points');
-            if (userPointsEl) userPointsEl.innerText = globalPoints;
-
-            // 3. Contador de la tienda (store-points-display)
-            const storePointsEl = document.getElementById('store-points-display');
-            if (storePointsEl) storePointsEl.innerText = globalPoints;
-            
-            // Barra progreso
-            let percentage = (globalPoints / maxPointsLevel) * 100;
-            if (percentage > 100) percentage = 100;
-            const xpBar = document.getElementById('xp-bar');
-            if (xpBar) xpBar.style.width = percentage + '%';
-        }
-
-        function completeChallenge(btn, points) {
-            btn.innerHTML = `<i class="ph-bold ph-check"></i> ¡Completado!`;
-            btn.classList.remove('bg-gray-900', 'text-white');
-            btn.classList.add('bg-green-500', 'text-white');
-            btn.disabled = true;
-            updateGlobalPoints(points);
-        }
-
-        function saveEntry(e) {
-            e.preventDefault();
-            const msg = document.getElementById('save-message');
-            if (msg) {
-                msg.classList.remove('hidden');
-                updateGlobalPoints(10);
-                setTimeout(() => {
-                    msg.classList.add('hidden');
-                    const form = document.getElementById('journalForm');
-                    if(form) form.reset();
-                }, 3000);
-            }
-        }
-
-        // --- 4. GENERADOR DE RUTA DE 60 DÍAS ---
-        function initMissionsRoute() {
-            const container = document.getElementById('missions-container');
-            if (!container) return; // Seguridad extra
-            
-            const currentDay = 4; // Simulado
-            
-            let html = '';
-            for (let i = 1; i <= 60; i++) {
-                const isPast = i < currentDay;
-                const isCurrent = i === currentDay;
-                const isLocked = i > currentDay;
-
-                // Definir estilo según estado
-                let circleClass = isLocked ? 'bg-gray-200 text-gray-400' : (isCurrent ? 'bg-brand-500 text-white ring-4 ring-brand-100' : 'bg-green-500 text-white');
-                let icon = isPast ? '<i class="ph-bold ph-check"></i>' : (isLocked ? '<i class="ph-fill ph-lock-key"></i>' : i);
-                let opacity = isLocked ? 'opacity-50' : 'opacity-100';
-                
-                // Títulos simulados para los primeros días
-                let title = `Día ${i}`;
-                if(i===1) title = "Día 1: Identificar emociones";
-                if(i===2) title = "Día 2: La pausa sagrada";
-                if(i===3) title = "Día 3: Respiración diafragmática";
-                if(i===4) title = "Día 4: Mindful Eating";
-                if(i===7) title = "Día 7: HITO SEMANAL 🏆";
-                if(i===30) title = "Día 30: MITAD DE CAMINO 🔥";
-                if(i===60) title = "Día 60: GRAN FINAL 👑";
-
-                html += `
-                <div class="flex items-center gap-4 py-3 ${opacity}">
-                    <div class="w-8 h-8 rounded-full ${circleClass} flex items-center justify-center font-bold z-10 shrink-0 border-2 border-white shadow-sm transition-transform hover:scale-110 cursor-pointer">
-                        ${icon}
-                    </div>
-                    <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex-1 relative">
-                        ${isCurrent ? '<span class="absolute -top-2 -right-2 bg-brand-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">HOY</span>' : ''}
-                        <h4 class="font-bold text-gray-800 text-sm">${title}</h4>
-                        ${!isLocked ? '<p class="text-xs text-green-600 font-medium">Completado +50XP</p>' : ''}
-                    </div>
-                </div>
-                `;
-            }
-            container.innerHTML += html;
-        }
-
-        // --- 5. LOGIC DIARIO DE LOGROS (PORTADO A VANILLA JS) ---
-        // Estado local para la tienda
-        let tasks = JSON.parse(localStorage.getItem('store_tasks')) || [
-            { id: 1, title: 'Hacer la cama', completed: false },
-            { id: 2, title: 'Beber 2L de agua', completed: false }
-        ];
-        let rewards = JSON.parse(localStorage.getItem('store_rewards')) || [
-            { id: 1, title: 'Ver 1 cap. de serie', cost: 50 },
-            { id: 2, title: 'Comprar un dulce', cost: 20 }
-        ];
-
-        function renderStore() {
-            // Render Tareas
-            const tasksList = document.getElementById('tasks-list');
-            if (tasksList) {
-                tasksList.innerHTML = '';
-                
-                // Ordenar: completadas al final
-                tasks.sort((a, b) => a.completed - b.completed);
-
-                tasks.forEach(task => {
-                    const div = document.createElement('div');
-                    div.className = `group flex items-center justify-between p-3 rounded-2xl border transition-all ${task.completed ? 'bg-slate-50 border-transparent opacity-50' : 'bg-white border-pink-100 shadow-sm hover:border-pink-200'}`;
-                    div.innerHTML = `
-                        <button onclick="toggleTask(${task.id})" class="flex-1 flex items-center gap-3 text-left">
-                            <div class="${task.completed ? 'text-green-400' : 'text-pink-300 group-hover:text-pink-500'}">
-                                ${task.completed ? '<i class="ph-fill ph-check-circle text-2xl"></i>' : '<i class="ph ph-circle text-2xl"></i>'}
-                            </div>
-                            <span class="${task.completed ? 'line-through text-slate-400' : 'text-purple-900 font-medium'} text-sm">${task.title}</span>
-                        </button>
-                        <button onclick="deleteTask(${task.id})" class="text-slate-300 hover:text-red-400 p-1"><i class="ph-bold ph-trash"></i></button>
-                    `;
-                    tasksList.appendChild(div);
-                });
-            }
-
-            // Render Recompensas
-            const rewardsList = document.getElementById('rewards-list');
-            if (rewardsList) {
-                rewardsList.innerHTML = '';
-                rewards.forEach(reward => {
-                    const canAfford = globalPoints >= reward.cost;
-                    const div = document.createElement('div');
-                    div.className = `relative w-full text-left p-3 rounded-xl border-2 transition-all group overflow-hidden ${canAfford ? 'bg-white border-purple-200 hover:border-purple-400 cursor-pointer' : 'bg-slate-50 border-slate-100 opacity-60'}`;
-                    div.onclick = () => canAfford && redeemReward(reward.id, reward.cost, reward.title);
-                    div.innerHTML = `
-                        <div class="flex justify-between items-center z-10 relative">
-                            <span class="font-bold text-purple-900 text-sm">${reward.title}</span>
-                            <div class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
-                                ${reward.cost} <i class="ph-fill ph-heart text-[10px]"></i>
+                    return (
+                        <div key={section.id} className={`p-1 rounded-[2rem] border ${style.split(' ')[1]} ${style.split(' ')[0]}`}>
+                            <div className="bg-white/50 backdrop-blur-sm rounded-[1.8rem] p-5 h-full">
+                                <h4 className={`font-bold text-xs uppercase tracking-wider mb-4 flex items-center gap-2 ${style.split(' ')[2]}`}>
+                                    {section.icon} {section.id}
+                                </h4>
+                                <div className="space-y-3">
+                                    {items.map(item => (
+                                        <div key={item.id} className="bg-white p-3.5 rounded-2xl shadow-sm border border-white/50 text-sm flex gap-3 group">
+                                            <span className={`flex-1 break-words ${item.isLink ? 'text-blue-600 underline' : 'text-slate-600'}`}>{item.content}</span>
+                                            <button onClick={() => setResearchItems(prev => prev.filter(i => i.id !== item.id))} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all" aria-label="Eliminar"><Trash2 size={14}/></button>
+                                        </div>
+                                    ))}
+                                    {items.length === 0 && <div className="text-center text-xs opacity-40 py-4 italic">Vacío</div>}
+                                </div>
                             </div>
                         </div>
-                        <button onclick="event.stopPropagation(); deleteReward(${reward.id})" class="absolute top-0 right-0 p-1 opacity-0 group-hover:opacity-100 text-red-400 hover:bg-red-50"><i class="ph-bold ph-trash text-xs"></i></button>
-                    `;
-                    rewardsList.appendChild(div);
-                });
-            }
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
 
-            // Guardar en Storage
-            localStorage.setItem('store_tasks', JSON.stringify(tasks));
-            localStorage.setItem('store_rewards', JSON.stringify(rewards));
-            // Actualizar UI Puntos
-            const storePointsEl = document.getElementById('store-points-display');
-            if(storePointsEl) storePointsEl.innerText = globalPoints;
-            
-            const globalPointsEl = document.getElementById('global-points');
-            if(globalPointsEl) globalPointsEl.innerText = globalPoints;
-        }
+// --- AUTOCUIDADO (MODO COMPASIVO) ---
+function SelfCareTracker({ addPoints, showToast }) {
+  const [habits, setHabits] = useLocalStorage('habits', [
+    { id: 'yoga', name: 'Yoga', icon: '🧘‍♀️', easy: false }, 
+    { id: 'water', name: 'Agua', icon: '💧', easy: true },
+    { id: 'glasses', name: 'Lentes', icon: '👓', easy: true }, 
+    { id: 'screen', name: 'Celular', icon: '📱', easy: false },
+    { id: 'breath', name: 'Respirar', icon: '🌬️', easy: true, hidden: true }, 
+  ]);
+  const [maintenance, setMaintenance] = useLocalStorage('maintenance', [
+    { id: 'hair', name: 'Cabello', lastDate: '2023-10-25', frequency: 3 },
+    { id: 'eyebrows', name: 'Cejas', lastDate: '2023-10-20', frequency: 15 },
+  ]);
+  const [intentions, setIntentions] = useLocalStorage('intentions', [
+    { id: 1, trigger: 'Si me saturo', action: '5 respiraciones', checked: false },
+    { id: 2, trigger: 'Si pierdo foco', action: 'anoto distracción', checked: false },
+  ]);
+  const [journal, setJournal] = useLocalStorage('moodJournal', []);
+  const [moodInput, setMoodInput] = useState('');
+  const [selectedEnergy, setSelectedEnergy] = useState(null);
+  const [lastReset, setLastReset] = useLocalStorage('lastHabitReset', '');
 
-        // Funciones Tienda
-        function handleBulkAdd() {
-            const input = document.getElementById('bulk-input');
-            if(!input || !input.value.trim()) return;
-            const lines = input.value.split(/\n/).filter(l => l.trim() !== '');
-            lines.forEach(line => {
-                tasks.push({ id: Date.now() + Math.random(), title: line.trim(), completed: false });
-            });
-            input.value = '';
-            renderStore();
-        }
+  // ✅ CORRECCIÓN 4: Reset Diario Automático
+  useEffect(() => {
+    const today = new Date().toLocaleDateString();
+    if (lastReset !== today) {
+        setHabits(prev => prev.map(h => ({ ...h, completedToday: false })));
+        setLastReset(today);
+        console.log("Hábitos reseteados para el nuevo día:", today);
+    }
+  }, [lastReset, setHabits, setLastReset]);
 
-        function toggleTask(id) {
-            const task = tasks.find(t => t.id === id);
-            if(task) {
-                task.completed = !task.completed;
-                updateGlobalPoints(task.completed ? 1 : -1); // +1 por tarea, -1 si se desmarca
-                renderStore();
-            }
-        }
+  // Modo Compasivo
+  const compassionateMode = selectedEnergy === 'low';
+  const displayedHabits = compassionateMode 
+    ? habits.filter(h => h.easy) 
+    : habits.filter(h => !h.hidden);
 
-        function deleteTask(id) {
-            tasks = tasks.filter(t => t.id !== id);
-            renderStore();
-        }
+  // ✅ CORRECCIÓN 2: Lógica separada para toggleHabit
+  const toggleHabit = (id) => {
+      let delta = 0;
+      setHabits(prev => prev.map(h => {
+          if (h.id !== id) return h;
+          const willComplete = !h.completedToday;
+          delta = willComplete ? 20 : -20;
+          return { ...h, completedToday: willComplete };
+      }));
+      if (delta !== 0) {
+          addPoints(delta);
+          if (delta > 0) showToast("¡Hábito completado! +20pts");
+      }
+  };
 
-        function addReward() {
-            const titleEl = document.getElementById('new-reward-title');
-            const costEl = document.getElementById('new-reward-cost');
-            if(!titleEl || !costEl) return;
-            
-            const title = titleEl.value;
-            const cost = parseInt(costEl.value);
-            
-            if(title && cost) {
-                rewards.push({ id: Date.now(), title, cost });
-                titleEl.value = '';
-                renderStore();
-            }
-        }
+  const toggleIntention = (id) => {
+      let delta = 0;
+      setIntentions(prev => prev.map(i => {
+          if (i.id !== id) return i;
+          const willComplete = !i.checked;
+          delta = willComplete ? 5 : -5;
+          return { ...i, checked: willComplete };
+      }));
+      if (delta !== 0) addPoints(delta);
+  };
 
-        function deleteReward(id) {
-            rewards = rewards.filter(r => r.id !== id);
-            renderStore();
-        }
+  const saveJournal = () => {
+    if(!selectedEnergy) return;
+    setJournal(prev => [{ id: Date.now(), date: new Date().toLocaleDateString(), energy: selectedEnergy, note: moodInput }, ...prev]);
+    setMoodInput(''); 
+    addPoints(15); 
+    showToast("Registro guardado", 'success');
+  };
 
-        function redeemReward(id, cost, title) {
-            if(confirm(`¿Canjear "${title}" por ${cost} puntos?`)) {
-                updateGlobalPoints(-cost);
-                renderStore();
-            }
-        }
-        
-        function clearAllTasks() {
-            if(confirm("¿Borrar todo?")) {
-                tasks = [];
-                renderStore();
-            }
-        }
-        
-        function resetDailyTasks() {
-            tasks.forEach(t => t.completed = false);
-            renderStore();
-        }
+  const getNextDate = (d, f) => {
+    const date = new Date(d); date.setDate(date.getDate() + f);
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  };
 
-        // --- INICIALIZACIÓN ---
-        initMissionsRoute();
-        renderStore();
-        updateGlobalPoints(0); // Sync inicial
-    </script>
-</body>
-</html>
+  return (
+    <div className="space-y-6">
+      
+      {compassionateMode && (
+          <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center gap-3 animate-in slide-in-from-top-2">
+              <Heart className="text-amber-500 fill-amber-200" size={24}/>
+              <div>
+                  <h4 className="font-bold text-amber-800 text-sm">Modo Compasivo Activado</h4>
+                  <p className="text-xs text-amber-700">Tu energía es baja. Simplificamos tus hábitos hoy. Sé amable contigo.</p>
+              </div>
+          </div>
+      )}
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {displayedHabits.map(h => (
+            <button key={h.id} onClick={() => toggleHabit(h.id)} className={`p-4 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-2 ${h.completedToday ? 'bg-violet-500 border-violet-500 text-white shadow-lg shadow-violet-200' : 'bg-white border-slate-100 text-slate-500 hover:border-violet-200 hover:text-slate-700'}`}>
+                <span className="text-2xl">{h.icon}</span>
+                <span className="text-xs font-bold uppercase tracking-wide">{h.name}</span>
+            </button>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-[2rem] border border-slate-100 p-6 md:p-8 shadow-sm">
+        <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2"><div className="bg-fuchsia-100 p-2 rounded-xl text-fuchsia-600"><Sparkles size={18}/></div> Mantenimiento</h3>
+        <div className="space-y-4">
+            {maintenance.map(m => {
+                const isDue = (new Date() - new Date(m.lastDate)) / 86400000 >= m.frequency;
+                return (
+                    <div key={m.id} className="flex justify-between items-center border-b border-slate-50 pb-4 last:border-0">
+                        <div>
+                            <p className="font-bold text-slate-700">{m.name}</p>
+                            <p className={`text-xs mt-1 font-medium ${isDue ? 'text-rose-500' : 'text-emerald-600'}`}>{isDue ? '¡Toca hoy!' : `Toca el ${getNextDate(m.lastDate, m.frequency)}`}</p>
+                        </div>
+                        <button onClick={() => setMaintenance(prev => prev.map(i => i.id === m.id ? { ...i, lastDate: new Date().toISOString().split('T')[0] } : i))} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${isDue ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' : 'bg-slate-100 text-slate-500'}`}>Hecho</button>
+                    </div>
+                );
+            })}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+         <div className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-sm">
+            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><div className="bg-indigo-100 p-2 rounded-xl text-indigo-600"><ShieldCheck size={18}/></div> Protocolos</h3>
+            <div className="space-y-3">
+                {intentions.map(i => (
+                    <div key={i.id} onClick={() => toggleIntention(i.id)} className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${i.checked ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-50 border-slate-100 hover:bg-white'}`}>
+                        <div className="text-sm"><span className="font-semibold text-slate-700">{i.trigger}</span> <ArrowRight className="inline w-3 h-3 text-slate-400 mx-1"/> <span className="text-indigo-600">{i.action}</span></div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${i.checked ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'}`}>{i.checked && <CheckSquare size={12}/>}</div>
+                    </div>
+                ))}
+            </div>
+         </div>
+
+         <div className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-sm">
+             <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><div className="bg-amber-100 p-2 rounded-xl text-amber-600"><Zap size={18}/></div> Energía</h3>
+             <div className="flex gap-2 mb-4">
+                 {ENERGY_LEVELS.map(l => (
+                     <button key={l.id} onClick={() => setSelectedEnergy(l.id)} className={`flex-1 p-3 rounded-2xl border transition-all flex flex-col items-center gap-1 ${selectedEnergy === l.id ? l.activeClass : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-white'}`}>
+                         {l.icon} <span className="text-[10px] font-bold uppercase">{l.label}</span>
+                     </button>
+                 ))}
+             </div>
+             <textarea value={moodInput} onChange={(e) => setMoodInput(e.target.value)} placeholder="¿Notas?" className="w-full p-3 rounded-xl bg-slate-50 border-slate-100 text-sm h-20 resize-none mb-3 outline-none focus:ring-2 focus:ring-amber-200"/>
+             <button onClick={saveJournal} disabled={!selectedEnergy} className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl text-sm hover:bg-black disabled:opacity-50">Registrar</button>
+         </div>
+      </div>
+    </div>
+  );
+}
